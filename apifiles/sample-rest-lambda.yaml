@@ -1,0 +1,28 @@
+openapi: "3.0.1"
+info:
+  title: "Sample API Rest Lambda"
+  version: "2.0.0"
+
+paths:
+  /test:
+    get:
+      responses:
+        default:
+          description: "Default response for GET /test"
+      x-amazon-apigateway-integration:
+        # Sample REST API integration with Lambda
+        payloadFormatVersion: "2.0"
+        type: "aws_proxy"
+        httpMethod: "POST"
+        uri: "${lambdaFunctionEndpoint}"
+        credentials: "${lambdaFunctionRoleArn}"
+        connectionType: "INTERNET"
+        responses:
+          default:
+            statusCode: "200"
+        passthroughBehavior: "when_no_match"
+        timeoutInMillis: 29000
+        contentHandling: "CONVERT_TO_TEXT"
+
+components:
+  securitySchemes: {}

@@ -1,0 +1,30 @@
+environment: "preview"
+config_map:
+  enabled:  false
+  files_path: values/configmaps
+  mount_point: /var/configmaps
+helm_values_overrides: {}
+
+# The following are for cloud specific configurations
+# These will be used to filter the secrets from the secret manager
+# and created as secrets in the Kubernetes cluster, then inyected as environment variables
+# For Azure:
+#azure:
+#  keyvayult_name: KEYVAULT_NAME
+#  keyvault_secret_filter: KEYVAULT_SECRET_FILTER
+#  pod_identity:
+#    enabled: true
+#    identity_name: IDENTITY_NAME
+# For AWS
+#aws:
+#  secrets_path_filter: /secrets
+#  pod_identity:
+#    enabled: true
+#    iam_role_name: ROLE_NAME
+# For GCP
+#gcp:
+#  secrets_path_filter: /secrets
+#  pod_identity:
+#    enabled: true
+#    service_account_name: SERVICE_ACCOUNT_NAME
+

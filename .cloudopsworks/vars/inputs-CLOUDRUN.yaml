@@ -1,0 +1,175 @@
+environment: "dev|uat|prod|demo"
+#runner_set: "RUNNER-ENV" # Optional: when using self-hosted runners
+#disable_deploy: true
+container_registry: REGISTRY # allways required for GCP CloudRun
+#
+# Optional Python/Pip Additional ENV variables
+#python_extra_env: |
+#  ENV_VAR1=value1
+#  ENV_VAR2=value2
+#
+gcp:
+  region: "GCP_REGION"
+  project_id: "GCP_PROJECT"
+#  impersonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is same for build and deploy
+#  build_impresonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is different for build and deploy
+#  deploy_impersonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is different for build and deploy
+dns:
+  enabled: false
+  private_zone: false
+  domain_name: DOMAIN_NAME
+  alias_prefix: ALIAS_PREFIX
+alarms:
+  enabled: false
+  threshold: 15
+  period: 120
+  evaluation_periods: 2
+  destination_topic: DESTINATION_SNS
+cloudrun:
+  type: service | job | worker_pool
+  #ingress: all | internal | internal_lb  # default: all
+  #timeout: 10.123456789s # Defaults to 10s
+  #concurrency: 80 # Defaults to 80
+  #working_dir: /workspace # Defaults to container's working directory
+  #default_url_disabled: true | false # default: false
+
+  ##
+  # Cloud Run Service Limits
+  #limits:
+  #  cpu: "1" # e.g., "0.25", "0.5", "1", "2", "4"
+  #  memory: "512Mi" # e.g., 128Mi, 256Mi, 512Mi, 1Gi, 2Gi, 4Gi, 8Gi, 16Gi
+  #  nvidia.com/gpu: "1" # e.g., "1", "2", "4" (requires GKE Autopilot)
+
+  ##
+  # Service Scaling Configuration
+  #scaling:
+  #  min: 0
+  #  max: 2
+  #  count: 1 # required if mode is MANUAL
+  #  mode: AUTOMATIC | MANUAL # required
+
+  ##
+  # Environment Variables and Secrets
+  #environment:
+  #  variables:
+  #    - name: key
+  #      value: value
+  #  secrets:
+  #    - name: SECRET_ENV_VAR_NAME
+  #      secret_name: my-secret
+  #      version: latest
+
+  ##
+  # Cloud Run Port mappings
+  #ports:
+  #  - name: http1 | h2c
+  #    port: 8080
+
+  ##
+  # VPC Configuration for Cloud Run service
+  #vpc:
+  #  connector:
+  #    #name: "projects/PROJECT/locations/REGION/connectors/CONNECTOR_NAME"
+  #    egress: all | private-ranges-only # default: all
+  #    network_interfaces:
+  #      network: default
+  #      subnetwork: default
+
+  ##
+  # Cloud Run Volume configuration
+  #volumes:
+  #  - name: secret-volume
+  #    secret:
+  #      secret_name: my-secret
+  #      default_mode: "0444"
+  #      items:
+  #        - path: secret-file.txt
+  #          version: latest
+  #          mode: "0444"
+  #  - name: cloudsql
+  #    instances:
+  #      - name: instance_name
+  #        connection_name: project:region:instance
+  #  - name: emptydir
+  #    empty_dir:
+  #      medium: "MEMORY" # optional, default is "MEMORY
+  #      size_limit: "100Mi" # optional
+  #  - name: gcs
+  #    gcs:
+  #      bucket_name: my-bucket  # required
+  #      read_only: true | false # default: false
+  #      mount_options: []    # optional
+  #  - name: nfs
+  #    nfs:
+  #      server: nfs-server.example.com  # required
+  #      path: /path/to/share          # required
+  #      read_only: true | false       # default: false
+  #
+  #volume_mounts:
+  #  - name: volume-name
+  #    mount_path: /path/in/container
+  #    sub_path: secret-file.txt
+
+  ##
+  # Optional: Probes
+  #liveness_probe:
+  #  initial_delay: 0
+  #  period: 1
+  #  timeout: 1
+  #  threshold: 3
+  #  http_get: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    path: /health
+  #    port: 8080
+  #    http_headers: # Optional: custom headers
+  #      - name: Custom-Header
+  #        value: Awesome
+  #  grpc: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+  #    service: "grpc.service.Name"
+  #  tcp_socket: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+  #readiness_probe:
+  #  initial_delay: 0
+  #  period: 1
+  #  timeout: 1
+  #  threshold: 3
+  #  http_get: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    path: /health
+  #    port: 8080
+  #    http_headers: # Optional: custom headers
+  #      - name: Custom-Header
+  #        value: Awesome
+  #  grpc: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+  #    service: "grpc.service.Name"
+  #  tcp_socket: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+  #startup_probe:
+  #  initial_delay: 0
+  #  period: 1
+  #  timeout: 1
+  #  threshold: 3
+  #  http_get: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    path: /health
+  #    port: 8080
+  #    http_headers: # Optional: custom headers
+  #      - name: Custom-Header
+  #        value: Awesome
+  #  grpc: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+  #    service: "grpc.service.Name"
+  #  tcp_socket: # Optional: choose one of http_get, tcp_socket, or grpc
+  #    port: 8080
+
+  ##
+  # Optional: triggers notifications for the Cloud Run function.
+  #triggers:
+  #  pubsub:
+  #    topic: PUBSUB_TOPIC_NAME
+  #  cloud_storage:
+  #    bucket_name: BUCKET_NAME
+  #    event_types:
+  #      - finalized
+  #      - deleted
+  #    filter_prefix: "OtherLogs/"
+  #    filter_suffix: ".log"

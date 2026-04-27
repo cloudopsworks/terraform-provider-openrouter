@@ -1,0 +1,53 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: JIRA Integration Workflow on release publishing
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+  statuses: read
+  pull-requests: read
+  issues: read
+  checks: read
+  packages: read
+
+concurrency:
+  group: "jira-integration-release-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  jira-integration:
+    name: JIRA Integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          source_ref: ${{ github.base_ref }}
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Jira Integration on Release
+        uses: ./bp/cd/tasks/jira/release
+        if: ${{ steps.config.outputs.jira_integration == 'true' && vars.JIRA_INTEGRATION_ENABLED == 'true' }}
+        with:
+          jira_api_user: ${{ vars.JIRA_INTEGRATION_API_USER }}
+          jira_api_token: ${{ secrets.JIRA_INTEGRATION_API_TOKEN }}
+          atlassian_cloud_domain: ${{ vars.JIRA_INTEGRATION_CLOUD_DOMAIN }}
+          atlassian_cloud_id: ${{ vars.JIRA_INTEGRATION_CLOUD_ID }}
+          project_key: ${{ steps.config.outputs.jira_project_key != '' && steps.config.outputs.jira_project_key || vars.JIRA_INTEGRATION_DEFAULT_PROJECT_KEY }}
+          project_id: ${{ steps.config.outputs.jira_project_id != '' && steps.config.outputs.jira_project_id || vars.JIRA_INTEGRATION_DEFAULT_PROJECT_ID }}
+          token: ${{ secrets.BOT_TOKEN }}

@@ -1,0 +1,229 @@
+environment: "dev|uat|prod|demo"
+runner_set: "RUNNER-ENV"
+#disable_deploy: true
+versions_bucket: "VERSIONS_BUCKET"
+#logs_bucket: "LOGS_BUCKET"
+container_registry: REGISTRY # optional if Preview = false, can comment out
+aws:
+  region: "AWS_REGION"
+#  sts_role_arn: "AWS_STS_ROLE_ARN" # Optional: when existing role is same for build and deploy
+#  build_sts_role_arn: "BUILD_AWS_STS_ROLE_ARN" # Optional: when existing role is different for build and deploy
+#  deploy_sts_role_arn: "DEPLOYMENT_AWS_STS_ROLE_ARN" # Optional: when existing role is different for build and deploy
+lambda:
+  arch: x86_64 | arm64
+  iam: {}
+  #  enabled: true
+  #  execRole:
+  #    enabled: true
+  #    principals:
+  #      - lambda.amazonaws.com
+  #      - apigateway.amazonaws.com
+  #  policy_attachments:
+  #    - arn: arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+  #  statements:
+  #    - effect: Allow # Uncomment below to if vpc.enabled = true
+  #      action:
+  #        - ec2:CreateNetworkInterface
+  #        - ec2:DescribeNetworkInterfaces
+  #        - ec2:DeleteNetworkInterface
+  #        - ec2:AssignPrivateIpAddresses
+  #        - ec2:UnassignPrivateIpAddresses
+  #      resource:
+  #        - "*"
+  #    - effect: Allow # Uncomment below to if vpc.enabled = true
+  #      action:
+  #        - ec2:DescribeSecurityGroups
+  #        - ec2:DescribeSubnets
+  #        - ec2:DescribeVpcs
+  #      resource:
+  #        - "*"
+  #    - effect: Allow
+  #      action:
+  #        - s3:PutObject
+  #        - s3:GetObject
+  #        - s3:DeleteObject
+  #        - s3:ListBucket
+  #      resource:
+  #        - arn:aws:s3:::<bucket-name>
+  #        - arn:aws:s3:::<bucket-name>/*
+  #    - effect: Allow
+  #      action:
+  #        - s3:ListAllMyBuckets
+  #      resource:
+  #        - "*"
+  #    - effect: Allow
+  #      action:
+  #        - dynamodb:PutItem
+  #        - dynamodb:GetItem
+  #        - dynamodb:DeleteItem
+  #        - dynamodb:UpdateItem
+  #        - dynamodb:Scan
+  #        - dynamodb:Query
+  #      resource:
+  #        - arn:aws:dynamodb:<region>:123456789012:table/<dynamodb-table>
+  #        - arn:aws:dynamodb:<region>:123456789012:table/<dynamodb-table>/*
+  #    - effect: Allow
+  #      action:
+  #        - dynamodb:ListTables
+  #      resource:
+  #        - "*"
+  environment:
+    variables:
+      - name: key
+        value: value
+  handler: index.handler
+  runtime: provided.al2023
+  #memory_size: 128
+  #reserved_concurrency: -1
+  #timeout: 3
+  # Provisioned concurrency enables if uncomment and set > 1
+  #provisioned_concurrent_executions: 1
+
+  ##
+  # Optional: if you want to create an alias for the Lambda function
+  #alias:
+  #  enabled: true
+  #  name: "prod" # prod | uat | dev | demo
+  #  routing_config:
+  #    - version: "1" # Version of the Lambda function
+  #      weight: 1.0 # Weight for the routing, can be between 0.0 and 1.0
+
+  ##
+  # Optionals: function Urls
+  functionUrls: []
+  #  - id: prod
+  #    qualifier: "prod"
+  #    authorizationType: "AWS_IAM"
+  #    cors:
+  #      allowCredentials: true
+  #      allowMethods:
+  #        - "GET"
+  #        - "POST"
+  #      allowOrigins:
+  #        - "*"
+  #      allowHeaders:
+  #        - "date"
+  #        - "keep-alive"
+  #      exposeHeaders:
+  #        - "date"
+  #        - "keep-alive"
+  #      maxAge: 86400
+  #  - id: "dev"
+  #    authorizationType: "NONE"
+  ##
+  # Optionals: event bridge scheduling
+  #            Remove comment on items to enable
+  schedule:
+    enabled: false        # (optional) Enable or disable singe schedule
+  #  schedule_group: "my-schedule-group" # (optional) Schedule group name, schedule group must already exists
+  #  flexible:
+  #    enabled: true
+  #    maxWindow: 20 # Minutes
+    expression: "rate(1 hour)"  # (optional) Schedule expression, can be cron or rate, required if enabled is true
+  #  timezone: "UTC-3"
+  #  suspended: false
+  #  payload: {} | ""             # (optional) Payload to send to the Lambda function, can be YAML (will be converted to JSON), JSON or string, defaults to null
+  #  multiple:                 # (optional) Multiple schedules, can be used to create multiple schedules for the same Lambda function
+  #    - expression: "rate(1 hour)" # (optional) Schedule expression, can be cron or rate, required if enabled is true
+        #  flexible:
+        #    enabled: true
+        #    maxWindow: 20 # Minutes
+        #  timezone: "UTC-3"
+        #  suspended: false
+        #  payload: {} | ""               # (optional) Payload to send to the Lambda function, can be YAML (will be converted to JSON), JSON or string, defaults to null
+
+  ##
+  # VPC configuration for the Lambda function
+  vpc:
+    enabled: false
+    create_security_group: false
+    security_groups: []
+    #  - sg-1234567890abcdef0
+    #  - sg-1234567890abcdef1
+    subnets: []
+    #  - subnet-1234567890abcdef0
+
+  ##
+  # Optional: logging config
+  #logging:
+  #  application_log_level: "INFO"
+  #  log_format: JSON | Text
+  #  system_log_level: INFO | DEBUG | ERROR
+
+  ##
+  # Optional: Xray tracing enable
+  tracing: {}
+  #  enabled: true
+  #  mode: Active | PassThrough
+
+  ##
+  # Optional: Change default lambda ephemeral storage
+  #ephemeral_storage:
+  #  enabled: true
+  #  size: 1024 # Default is 512
+
+  ##
+  # Optional: EFS configuration
+  #efs:
+  #  enabled: true
+  #  arn: arn:aws:elasticfilesystem:us-east-1:123456789012:file-system/fs-12345678
+  #  local_mount_path: /mnt/efs
+  
+  ##
+  # Optional: triggers notifications for the lambda function.
+  triggers: {}
+  #  s3:
+  #    bucketName: BUCKET_NAME
+  #    events:
+  #      - s3:ObjectCreated:*
+  #    filterPrefix: "OtherLogs/"
+  #    filterSuffix: ".log"
+  #  sqs:
+  #    queueName: SQS_QUEUE_NAME
+  #    batchSize: 10 # Optional: Maximum number of items to retrieve in a single batch, defaults to 10
+  #    maximumConcurrency: 2 # Optional: Maximum number of concurrent messages to process
+  #    metricsConfig: true # Optional: Enable metrics for the DynamoDB stream, defaults to false
+  #    filterCriteria:
+  #      - pattern: '{ "body": { "Temperature": [ { "numeric": [ ">", 0, "<=", 100 ] } ], "Location": [ "New York" ] } }'
+  #      - pattern_object:
+  #          body:
+  #            Temperature:
+  #              - numeric:
+  #                  - ">"
+  #                  - 0
+  #                  - "<="
+  #                  - 100
+  #            Location:
+  #              - New York
+  #
+  #  dynamodb:
+  #    tableName: DYNAMODB_TABLE_NAME
+  #    startingPosition: LATEST | TRIM_HORIZON # Optional: Starting position for the stream, defaults to LATEST
+  #    batchSize: 100 # Optional: Maximum number of records to retrieve in a single batch, defaults to 100
+  #    maximumRetryAttempts: 3 # Optional: Maximum number of retry attempts for failed records, defaults to -1
+  #    metricsConfig: true # Optional: Enable metrics for the DynamoDB stream, defaults to false
+  #    filterCriteria:
+  #      - pattern: '{ "body": { "Temperature": [ { "numeric": [ ">", 0, "<=", 100 ] } ], "Location": [ "New York" ] } }'
+  #      - pattern_object:
+  #          body:
+  #            Temperature:
+  #              - numeric:
+  #                  - ">"
+  #                  - 0
+  #                  - "<="
+  #                  - 100
+  #            Location:
+  #              - New York
+
+  ## Lambda Layers
+  layers: []
+  #  - arn: arn:aws:lambda:us-east-1:123456789012:layer:my-layer:1
+  #  - arn: arn:aws:lambda:us-east-1:123456789012:layer:my-layer:2
+  #  - arn: arn:aws:lambda:us-east-1:901920570463:layer:aws-otel-java-agent-amd64-ver-1-32-0:4
+  ## Others will come later
+
+##
+# Optional variable for adding extra tags to the environment
+tags: {}
+#  key: value
+#  key2: value2

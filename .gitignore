@@ -1,0 +1,53 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+# Binaries for programs and plugins
+bin/
+test-results/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+VERSION
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+# .Mac
+**/.DS_Store
+
+# IntelliJ idea
+.idea/
+*.iml
+
+# Eclipse JDT
+.project
+.settings/
+.classpath
+.factorypath
+
+### VS Code ###
+.vscode/
+
+### Tronador ###
+.tronador*.mk
+.tronador
+tronador/

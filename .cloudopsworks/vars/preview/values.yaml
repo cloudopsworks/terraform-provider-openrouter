@@ -1,0 +1,21 @@
+image:
+  pullPolicy: Always
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  rules:
+    - host: preview.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: preview-helm
+                port:
+                  number: 80
+
+service:
+  externalPort: 80
+  internalPort: 8080

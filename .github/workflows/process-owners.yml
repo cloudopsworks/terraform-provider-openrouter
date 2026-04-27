@@ -1,0 +1,53 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Process OWNERS file for configuration changes
+on:
+  push:
+    # Owners can be changed only on the following branches
+    branches:
+      - master
+      - main
+      - develop
+    paths:
+      - OWNERS
+      - .cloudopsworks/cloudopsworks-ci.yaml
+      - .cloudopsworks/cloudopsworks-cd.yaml
+  workflow_dispatch:
+
+concurrency: owners-${{ github.repository }}-${{ github.ref }}
+
+# Permission Settings for the entire RUN
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  packages: write
+  statuses: write
+
+jobs:
+  process-owners:
+    name: 'Process OWNERS file for configuration changes'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          token: ${{ secrets.BOT_TOKEN_SCOPED }}
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Process owners files
+        uses: ./bp/cd/tasks/repo/owners
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          bot_user: ${{ vars.BOT_USER }}
+          bot_email: ${{ vars.BOT_EMAIL }}

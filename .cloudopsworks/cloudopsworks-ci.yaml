@@ -1,0 +1,143 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+zipGlobs:
+  - conf/**
+excludeGlobs:
+  - Dockerfile
+  - .helmignore
+  - .dockerignore
+  - .git*
+  - .git/
+  - OWNER*
+  - README.md
+  - jenkins*
+  - charts/*
+  - cloudopsworks-ci*
+  - skafold*
+  - tronador/*
+  - .tronador
+  - Makefile
+  - apifiles/*
+  - test-results/*
+
+# Repo & CD Configurations
+# Some of them previously managed in OWNERS file
+# now are managed from here
+config:
+  # Configure repository to enable branch protection
+  # https://docs.github.com/en/rest/reference/repos#update-branch-protection
+  branchProtection: true
+  # Configure the repository to use Git Flow and or support Branches enablement
+  gitFlow:
+    enabled: true
+    supportBranches: false
+  # Protected sources rules (future implementation)
+  protectedSources:
+    - "*.tf"
+    - "*.tfvars"
+    - OWNERS
+    - Makefile
+    - .github
+
+  # Optional only needed if not automatic or protection is true & Further review is needed for merging on Master/Main
+  requiredReviewers: 1
+
+  # Required: needed if not automatic or protection is true
+  reviewers: []
+  #  - elasticguru-bot
+  #  - cloudopsworks-dev
+  #  - cloudopsworks/engineering
+
+  # Required: needed for permit owners to perform commits under protected branches.
+  # Teams are specified as org/team-name
+  owners: []
+  #  - elasticguru-bot
+  #  - cloudopsworks-dev
+  #  - cloudopsworks/admin
+
+  # Optional configure the repository members
+  contributors:
+    admin:
+      - cloudopsworks/admin
+      - cloudopsworks-bot
+    triage: []
+    pull: []
+    push:
+      - cloudopsworks/engineering
+    maintain: []
+
+## CD pipeline configuration uncomment and configure accordingly to enable
+cd:
+  # Indicate that the environment makes automatic merges and deploys on lower environments
+  automatic: false
+
+  # These deployment environments are fixed by the GitFlow workflow
+  # targetName are optional for most deployments but are required for support branches.
+  #
+  # The criteria for each deployment are as follow:
+  #   Pushes to 'develop'       -> develop
+  #   Pushes to 'release/**'    -> test
+  #   Push TAG on 'release/**'  -> prerelease    - Tags are in the form v*.*.*-[alpha|beta].*
+  #                                   /targets   - Tags are in the form v*.*.*-[alpha|beta].*+deploy-.*
+  #   Push TAG on 'main|master' -> release       - Tags are in the strict form v*.*.*
+  #                                   /targets   - Tags are in the form v*.*.*+deploy-.*
+  #   Push TAG on 'support/**'  -> support x.y.*
+  #
+  # Previews are run on pull requests from hotfix/** or feature/** branches into any of the development / main branches
+  deployments:
+    develop:
+      #variables:
+      #  var1: value1
+      #  var2: value2
+      # Sample variables to deploy into different account
+      #  DEPLOYMENT_AWS_REGION: us-east-1
+      #  DEPLOYMENT_AWS_STS_ROLE_ARN: arn:aws:iam::123456789012:role/TerraformAccessRole
+      #enabled: false
+      env: dev
+      #targetName: dev-target
+    release:
+      #variables:
+      #  var1: value1
+      #  var2: value2
+      #reviewers: false # defaults to true
+      env: prod
+      #targetName: prod-target
+#      targets:
+#        my-target:
+#          env: prod-my-target
+#          targetName: prod-my-target
+    test:
+      #variables:
+      #  var1: value1
+      #  var2: value2
+      #enabled: false
+      env: uat
+      #targetName: uat-target
+    prerelease:
+      #variables:
+      #  var1: value1
+      #  var2: value2
+      #reviewers: false # defaults to true
+      #enabled: false
+      env: demo
+      #targetName: demo-target
+#      targets:
+#        my-target:
+#          env: demo-my-target
+#          targetName: demo-my-target
+    hotfix:
+      env: hotfix
+      #targetName: hotfix-target
+    support:
+      - match: 1.5.*
+        env: demo
+        targetName: demo
+      - match: 1.3.*
+        env: demo2
+        targetName: demo2

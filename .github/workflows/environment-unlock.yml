@@ -1,0 +1,215 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Environment IAC Unlock Process
+on:
+  # Runs only on demand
+  workflow_dispatch:
+    inputs:
+      unlockDeploymentName:
+        type: environment
+        description: Select Environment to Unlock
+        required: true
+      target:
+        type: choice
+        description: What to Unlock? API or Application Deployment
+        required: true
+        default: app
+        options:
+          - app
+          - api
+      api_lock:
+        type: string
+        description: 'API to unlock (Format: API_Name/version)'
+        required: false
+        default: ''
+      lockId:
+        type: string
+        description: Lock ID for the environment
+        required: true
+      qualifier:
+        type: string
+        description: Qualifier for the lock (green/bluee)
+        required: false
+        default: ''
+
+concurrency: unlock-${{ github.repository }}-${{ inputs.unlockDeploymentName }}
+
+# Permission Settings for the entire RUN
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  packages: write
+  statuses: write
+
+jobs:
+  preload:
+    name: Preload Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      runner_set: ${{ steps.config.outputs.runner_set }}
+      cloud: ${{ steps.config.outputs.cloud }}
+      cloud_type: ${{ steps.config.outputs.cloud_type }}
+      aws_region: ${{ steps.config.outputs.aws_region }}
+      deploy_aws_sts_role_arn: ${{ steps.config.outputs.deploy_aws_sts_role_arn }}
+      release_name: ${{ steps.config.outputs.release_name }}
+      project_key: ${{ steps.config.outputs.project_key }}
+      build_azure_rg: ${{ steps.config.outputs.build_azure_rg }}
+      deploy_azure_rg: ${{ steps.config.outputs.deploy_azure_rg }}
+      gcp_project: ${{ steps.config.outputs.gcp_project }}
+      gcp_region: ${{ steps.config.outputs.gcp_region }}
+      deploy_gcp_impersonate_sa: ${{ steps.config.outputs.deploy_gcp_impersonate_sa }}
+      environment: ${{ steps.config.outputs.environment }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+  unlock-environment:
+    needs:
+      - preload
+    name: 'Unlock Environment - Branch: ${{ github.ref_name }} - Env: ${{ inputs.unlockDeploymentName }}'
+    runs-on: ${{ needs.preload.outputs.runner_set }}
+    environment: ${{ inputs.unlockDeploymentName }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          blueprint_ref: 'v5.10'
+
+      - name: Install runner tools
+        uses: ./bp/ci/common/install/runner-tools
+
+      - name: Move Apis
+        uses: ./bp/cd/tasks/apis/copy
+        if: ${{ inputs.target == 'api' }}
+        with:
+          cloud: ${{ needs.preload.outputs.cloud }}
+
+      - name: Unlock API AWS
+        if: ${{ needs.preload.outputs.cloud == 'AWS' && inputs.target == 'api' }}
+        uses: ./bp/cd/deploy/api/aws
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          token: ${{ secrets.token }}
+          aws_region: ${{ needs.preload.outputs.aws_region != '' && needs.preload.outputs.aws_region || vars.DEPLOYMENT_AWS_REGION }}
+          aws_sts_role_arn: ${{ needs.preload.outputs.deploy_aws_sts_role_arn != '' && needs.preload.outputs.deploy_aws_sts_role_arn || vars.DEPLOYMENT_AWS_STS_ROLE_ARN }}
+          aws_access_key_id: ${{ secrets.DEPLOYMENT_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.DEPLOYMENT_AWS_SECRET_ACCESS_KEY }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: 'v1'
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}
+          api_lock: ${{ inputs.api_lock }}
+
+      - name: Unlock Application Deploy AWS
+        if: ${{ needs.preload.outputs.cloud == 'AWS' && inputs.target == 'app' }}
+        uses: ./bp/cd/deploy/app/aws
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          qualifier: ${{ inputs.qualifier }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
+          token: ${{ secrets.BOT_TOKEN }}
+          aws_region: ${{ needs.preload.outputs.aws_region != '' && needs.preload.outputs.aws_region || vars.DEPLOYMENT_AWS_REGION }}
+          aws_sts_role_arn: ${{ needs.preload.outputs.deploy_aws_sts_role_arn != '' && needs.preload.outputs.deploy_aws_sts_role_arn || vars.DEPLOYMENT_AWS_STS_ROLE_ARN }}
+          aws_access_key_id: ${{ secrets.DEPLOYMENT_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.DEPLOYMENT_AWS_SECRET_ACCESS_KEY }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: 'v1'
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}
+
+      - name: Unlock API Azure
+        if: ${{ needs.preload.outputs.cloud == 'AZURE' && inputs.target == 'api' }}
+        uses: ./bp/cd/deploy/api/azure
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          token: ${{ secrets.token }}
+          azure_service_id: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_ID }}
+          azure_service_secret: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_SECRET }}
+          azure_rg: ${{ needs.preload.outputs.deploy_azure_rg != '' && needs.preload.outputs.deploy_azure_rg || vars.DEPLOYMENT_AZURE_RESOURCE_GROUP }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: 'v1'
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}
+          api_lock: ${{ inputs.api_lock }}
+
+      - name: Unlock Application Deploy Azure
+        if: ${{ needs.preload.outputs.cloud == 'AZURE' && inputs.target == 'app' }}
+        uses: ./bp/cd/deploy/app/azure
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          qualifier: ${{ inputs.qualifier }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
+          token: ${{ secrets.BOT_TOKEN }}
+          azure_service_id: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_ID }}
+          azure_service_secret: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_SECRET }}
+          azure_rg: ${{ needs.preload.outputs.deploy_azure_rg != '' && needs.preload.outputs.deploy_azure_rg || vars.DEPLOYMENT_AZURE_RESOURCE_GROUP }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: ${{ inputs.semver }}
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}
+
+      - name: Unlock API GCP
+        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        uses: ./bp/cd/deploy/api/gcp
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          qualifier: ${{ inputs.qualifier }}
+          cloud_type: ${{ inputs.cloud_type }}
+          token: ${{ secrets.BOT_TOKEN }}
+          gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
+          gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
+          gcp_project: ${{ needs.preload.outputs.gcp_project != '' && needs.preload.outputs.gcp_project || vars.DEPLOYMENT_GCP_PROJECT }}
+          gcp_region: ${{ needs.preload.outputs.gcp_region != '' && needs.preload.outputs.gcp_region || vars.DEPLOYMENT_GCP_REGION }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: 'v1'
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}
+          api_lock: ${{ inputs.api_lock }}
+
+      - name: Unlock Application Deploy GCP
+        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        uses: ./bp/cd/deploy/app/gcp
+        with:
+          unlock: true
+          lock_id: ${{ inputs.lockId }}
+          qualifier: ${{ inputs.qualifier }}
+          cloud_type: ${{ inputs.cloud_type }}
+          token: ${{ secrets.BOT_TOKEN }}
+          gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
+          gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
+          gcp_project: ${{ needs.preload.outputs.gcp_project != '' && needs.preload.outputs.gcp_project || vars.DEPLOYMENT_GCP_PROJECT }}
+          gcp_region: ${{ needs.preload.outputs.gcp_region != '' && needs.preload.outputs.gcp_region || vars.DEPLOYMENT_GCP_REGION }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ needs.preload.outputs.release_name }}
+          release_version: ${{ inputs.semver }}
+          project_key: ${{ needs.preload.outputs.project_key }}
+          deployment_name: ${{ inputs.unlockDeploymentName }}
+          environment: ${{ needs.preload.outputs.environment }}

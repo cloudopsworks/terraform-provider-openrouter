@@ -1,0 +1,62 @@
+environment: "dev|uat|prod|demo"
+#runner_set: "RUNNER-ENV" # Optional: when using self-hosted runners
+#disable_deploy: true
+versions_bucket: "VERSIONS_BUCKET"
+#blue_green: true # uncomment for Prod environment to support blue/green deploy
+container_registry: REGISTRY # optional if Preview = false, can comment out
+#
+# Optional Python/Pip Additional ENV variables
+#python_extra_env: |
+#  ENV_VAR1=value1
+#  ENV_VAR2=value2
+#
+gcp:
+  region: "GCP_REGION"
+  project_id: "GCP_PROJECT"
+#  impersonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is same for build and deploy
+#  build_impresonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is different for build and deploy
+#  deploy_impersonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is different for build and deploy
+dns:
+  enabled: false
+  private_zone: false
+  domain_name: DOMAIN_NAME
+  alias_prefix: ALIAS_PREFIX
+alarms:
+  enabled: false
+  threshold: 15
+  period: 120
+  evaluation_periods: 2
+  destination_topic: DESTINATION_SNS
+appengine:
+  runtime: golang1.25
+  type: standard # standard | flexible
+  entrypoint_shell: python main.py
+#  iam:
+#    service_account:
+  instance:
+    class: B2
+#    auto_scaling:
+#      min: 0
+#      max: 1
+#      max_idle: 1
+#      min_idle: 1
+#      target_cpu: 0.6
+#      target_throughput: 0.6
+#      max_concurrent_requests: 10
+#      min_pending_latency: automatic
+#      max_pending_latency: automatic
+#      cool_down_period: 300
+    basic_scaling:
+      max: 1
+      idle_timeout: 300s
+#    manual_scaling:
+#      count: 2
+#  networking:
+#    connector:
+#      create: true
+#      subnet_name: "serverless-subnet"
+#      create: false
+#      name: "<connector name>"
+  # Reference: https://cloud.google.com/appengine/docs/standard/reference/app-yaml?tab=java#handlers_element
+  http_handlers: []
+  env_variables: { }

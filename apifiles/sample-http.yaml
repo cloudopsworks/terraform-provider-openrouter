@@ -1,0 +1,20 @@
+openapi: "3.0.1"
+info:
+  title: "Sample HTTP API"
+  version: "2.0.0"
+
+paths:
+  /test:
+    get:
+      responses:
+        default:
+          description: "Default response for GET /test"
+      x-amazon-apigateway-integration:
+        # Sample HTTP API integration with Lambda
+        $ref: "#/components/x-amazon-apigateway-integrations/lambda_integration"
+
+components:
+  securitySchemes: {}
+  # Integration for HTTP API with Lambda
+  x-amazon-apigateway-integrations:
+    lambda_integration: {}

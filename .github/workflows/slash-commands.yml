@@ -1,0 +1,31 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Chatops Agent
+on:
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  issues: write
+  contents: write
+  packages: read
+  pull-requests: write
+  statuses: write
+  security-events: write
+
+jobs:
+  gitops:
+    name: 'Gitops Chatops Agent'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git-Ops
+        uses: cloudopsworks/blueprints/cd/gitops/command@v5.10
+        with:
+          token: ${{ secrets.BOT_TOKEN }}

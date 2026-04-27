@@ -1,0 +1,18 @@
+blank_issues_enabled: false
+
+contact_links:
+
+  - name: Community Slack Team
+    url: https://cloudops.works/slack/
+    about: |-
+      Please ask and answer questions here.
+
+  - name: Office Hours
+    url: https://cloudops.works/office-hours/
+    about: |-
+      Join us every Wednesday for FREE Office Hours (lunch & learn).
+
+  - name: DevOps Accelerator Program
+    url: https://cloudops.works/tronador/
+    about: |-
+      Own your infrastructure in record time. We build it. You drive it. 

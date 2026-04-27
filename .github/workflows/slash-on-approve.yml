@@ -1,0 +1,35 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Slash command on Approve/LGTM
+
+on:
+  repository_dispatch:
+    types:
+      - approved-command
+      - approve-command
+      - lgtm-command
+permissions:
+  issues: write
+  contents: write
+  packages: read
+  statuses: write
+  pull-requests: write
+
+
+jobs:
+  command:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Approve Command
+        uses: cloudopsworks/blueprints/cd/gitops/approved@v5.10
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+#          command: ${{ github.event.client_payload.command }}
+#          pull_request_number: ${{ github.event.client_payload.pull_request_number }}
+#          repository: ${{ github.event.client_payload.repository }}

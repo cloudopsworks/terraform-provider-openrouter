@@ -1,0 +1,108 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Deploy Container to Registry
+on:
+  workflow_call:
+    inputs:
+      deployment_name:
+        required: true
+        type: string
+      cloud:
+        required: true
+        type: string
+      cloud_type:
+        required: true
+        type: string
+      runner_set:
+        required: true
+        type: string
+      default_aws_region:
+        required: false
+        type: string
+        default: ''
+      default_aws_sts_role_arn:
+        required: false
+        type: string
+        default: ''
+      default_azure_rg:
+        required: false
+        type: string
+        default: ''
+      default_gcp_project:
+        required: false
+        type: string
+        default: ''
+      default_gcp_region:
+        required: false
+        type: string
+        default: ''
+      default_gcp_impersonate_sa:
+        required: false
+        type: string
+        default: ''
+      default_registry_address:
+        required: false
+        type: string
+        default: ''
+      project_key:
+        required: true
+        type: string
+      project_owner:
+        required: true
+        type: string
+    secrets:
+      token:
+        description: 'GitHub Token'
+        required: true
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: false
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: false
+      azure_service_id:
+        description: 'Azure Service Principal ID'
+        required: false
+      azure_service_secret:
+        description: 'Azure Service Principal Secret'
+        required: false
+      gcp_credentials:
+        description: 'Google Cloud Credentials secrets'
+        required: false
+
+jobs:
+  deploy-container:
+    name: 'Deploy Container into environment - Branch: ${{ github.ref_name }} - Env: ${{ inputs.deployment_name }}'
+    runs-on: ${{ inputs.runner_set }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          blueprint_ref: 'v5.10'
+
+      # Get Pipeline Config
+      - name: Get Pipeline Config
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Deploy to Container Registry
+        uses: ./bp/cd/deploy/container
+        with:
+          cloud: ${{ inputs.cloud }}
+          environment: ${{ steps.config.outputs.environment }}
+          aws_region: ${{ steps.config.outputs.aws_region != '' && steps.config.outputs.aws_region || inputs.default_aws_region }}
+          aws_sts_role_arn: ${{ steps.config.outputs.build_aws_sts_role_arn != '' && steps.config.outputs.build_aws_sts_role_arn || inputs.default_aws_sts_role_arn }}
+          aws_access_key_id: ${{ secrets.aws_access_key_id }}
+          aws_secret_access_key: ${{ secrets.aws_secret_access_key }}
+          azure_service_id: ${{ secrets.azure_service_id }}
+          azure_service_secret: ${{ secrets.azure_service_secret }}
+          gcp_credentials: ${{ secrets.gcp_credentials }}
+          default_registry_address: ${{ inputs.default_registry_address }}
+          project_key: ${{ inputs.project_key }}
+          project_owner: ${{ inputs.project_owner }}

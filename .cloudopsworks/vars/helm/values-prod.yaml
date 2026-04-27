@@ -1,0 +1,157 @@
+# Enable deployment through StatefulSet
+# This is useful for applications that require stable network identities and persistent storage.
+#statefulset:
+#  enabled: true
+
+# Enable deployment through DaemonSet
+# This is useful for applications that need to run on every node in the cluster.
+#daemonset:
+#  enabled: true
+
+# Enable to deploy Kubernetes Job instead of Deployment
+#job:
+#  enabled: true
+
+# Enable to deploy Kubernetes CronJob instead of Deployment
+#cronjob:
+#  enabled: true
+#  restartPolicy: OnFailure
+
+# Deployment Annotations
+#annotations: {}
+#  reloader.stakater.com/auto: "true" # Recommended if you are using external_secrets.enabled=true and have installed Stakater Reloader (https://github.com/stakater/Reloader)
+
+# Pod specific Annotations
+#podAnnotations: {}
+#  instrumentation.opentelemetry.io/inject-go: "true" # Uncomment and remove brackets to enable opentelemetry instrumentation
+
+# Affinity & Antiaffinity configuration for Pods
+#affinity: {}
+
+# Node / Pod Tolerations
+#tolerations: {}
+
+# Node Selector Affinity
+#nodeSelector: {}
+
+# Additional Volume Mounts for Pods
+#additionalVolumeMounts: {}
+
+# Additional Volumes allocated to Deployments
+#additionalVolumes: {}
+
+# Replicas Required to Run Deployment - only required for Deployment or StatefulSet
+#replicaCount: 1
+
+# Deployment Strategy - Defaults to Recreate
+#strategy:
+#  type: RollingUpdate
+#  rollingUpdate:
+#    maxSurge: 1
+#    maxUnavailable: 1
+
+# define environment variables here as a map of key: value
+#env:
+#  - name: ENV_VAR_NAME
+#    value: "ENV VAR VALUE"
+#  ...
+
+# define environment variables to set from ConfigMap / Secret
+#envFrom: {}
+
+# Probes: liveness readines and startup
+probe:
+  path: /healthz
+#  port: 8082
+startupProbe:
+  enabled: true
+#livenessProbe: {}
+#readinessProbe: {}
+# Limits are set outside or off
+#resources:
+#  limits:
+#    cpu: 500m
+#    memory: 512Mi
+#  requests:
+#    cpu: 400m
+#    memory: 512Mi
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  rules:
+    - host: PROD-URL
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: PROJECT_NAME-helm
+                port:
+                  number: 80
+
+# HorizontalPodAutoscaler
+#hpa:
+#  enabled: false
+#  minReplicas: 2
+#  maxReplicas: 6
+#  cpuTargetAverageUtilization: 80
+#  memoryTargetAverageUtilization: 80
+#  # Enable Metrics
+#  cpuPercentage: true
+#  memoryPercentage: true
+#  # Optionals defaults
+#  stabilizationWindowSeconds: 300
+#  percentValueDown: 40
+#  percentPeriodDown: 60
+#  percentValueUp: 80
+#  percentPeriodUp: 60
+#  # External
+#  external:
+#    enabled: true
+#    name: external-metric
+#    labelSelector:
+#      labelKey: labelValue
+#    averageValue: 50
+
+# Service Account
+#serviceAccount:
+  # Specifies whether a service account should be used, if set true, the service account name should be set
+  #enabled: false
+  # Specifies whether a service account should be created
+  #create: false
+  #annotations: {}
+  #name: (optional)
+
+# KEDA ScaledObject Configuration
+#keda:
+#  enabled: true
+#  annotations:
+#    scaledobject.keda.sh/transfer-hpa-ownership: "true"     # Optional. Use to transfer an existing HPA ownership to this ScaledObject
+#    validations.keda.sh/hpa-ownership: "true"               # Optional. Use to disable HPA ownership validation on this ScaledObject
+#    autoscaling.keda.sh/paused: "true"                      # Optional. Use to pause autoscaling of objects explicitly
+#  envSourceContainerName: {container-name}                # Optional. Default: .spec.template.spec.containers[0]
+#  pollingInterval:  30                                      # Optional. Default: 30 seconds
+#  cooldownPeriod:   300                                     # Optional. Default: 300 seconds
+#  initialCooldownPeriod:  0                                 # Optional. Default: 0 seconds
+#  idleReplicaCount: 0                                       # Optional. Default: ignored, must be less than minReplicaCount
+#  minReplicaCount:  1                                       # Optional. Default: 0
+#  maxReplicaCount:  100                                     # Optional. Default: 100
+#  fallback:                                                 # Optional. Section to specify fallback options
+#    failureThreshold: 3                                     # Mandatory if fallback section is included
+#    replicas: 6                                             # Mandatory if fallback section is included
+#    behavior: {kind-of-behavior}                            # Optional. Default: "static"
+#  advanced:                                                 # Optional. Section to specify advanced options
+#    restoreToOriginalReplicaCount: true/false               # Optional. Default: false
+#    horizontalPodAutoscalerConfig:                          # Optional. Section to specify HPA related options
+#      name: {name-of-hpa-resource}                          # Optional. Default: keda-hpa-{scaled-object-name}
+#      behavior:                                             # Optional. Use to modify HPA's scaling behavior
+#        scaleDown:
+#          stabilizationWindowSeconds: 300
+#          policies:
+#            - type: Percent
+#              value: 100
+#              periodSeconds: 15
+#  triggers: {}
+#  # {list of triggers to activate scaling of the target resource, see keda documentation for details}

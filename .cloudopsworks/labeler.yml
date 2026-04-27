@@ -1,0 +1,25 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+release:
+  - base-branch: [ 'main', 'master' ]
+
+feature:
+  - head-branch: [ '^feature' ]
+
+hotfix:
+  - head-branch: [ '^hotfix', '^fix' ]
+
+size-XS:
+- any: [ '*Dockerfile' ]
+
+size-S:
+- any: [ '*go.mod', 'charts/**/*' ]
+
+size-XL:
+- any: [ '**/*.go', '!*Dockerfile', '!*go.mod', '!charts/**/*' ]

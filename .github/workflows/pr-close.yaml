@@ -1,0 +1,181 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Pull Request Closure Cleanup
+on:
+  pull_request:
+    types:
+      - closed
+
+concurrency: pr-close-${{ github.repository }}-${{ github.ref }}
+
+permissions:
+  actions: write
+  contents: write
+  packages: write
+  statuses: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  preload:
+    name: Preload Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      is_release: ${{ steps.config.outputs.is_release }}
+      is_pre_release: ${{ steps.config.outputs.is_pre_release }}
+      deployment_name: ${{ steps.config.outputs.deployment_name }}
+      blue_green_enabled: ${{ steps.config.outputs.blue_green_enabled }}
+      target_cloud: ${{ steps.config.outputs.target_cloud }}
+      deployment_enabled: ${{ steps.config.outputs.deployment_enabled }}
+      is_library: ${{ steps.config.outputs.is_library }}
+      cloud: ${{ steps.config.outputs.cloud }}
+      cloud_type: ${{ steps.config.outputs.cloud_type }}
+      runner_set: ${{ steps.config.outputs.runner_set != '' && steps.config.outputs.runner_set || vars.PREVIEW_RUNNER_SET }}
+      apis_enabled: ${{ steps.config.outputs.apis_enabled }}
+      container_enabled: ${{ steps.config.outputs.container_enabled }}
+      has_preview: ${{ steps.config.outputs.has_preview }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          source_ref: ${{ github.base_ref }}
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Push Tag
+        uses: ./bp/cd/tasks/repo/push-tag
+        if: |
+          github.event.pull_request.merged == true && 
+          ( github.base_ref == 'master' || github.base_ref == 'main' 
+          || startsWith(github.base_ref,'support/') )
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          bot_user: ${{ vars.BOT_USER }}
+          bot_email: ${{ vars.BOT_EMAIL }}
+
+  preview-destroy:
+    needs:
+      - preload
+    if: needs.code-build.outputs.has_preview == 'true'
+    runs-on: ${{ needs.code-build.outputs.runner_set }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          source_ref: ${{ github.head_ref }}
+          blueprint_ref: 'v5.10'
+
+      # Get Pipeline Config
+      - name: Get Pipeline Config
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Preview Destroy AWS
+        if: ${{ steps.config.outputs.cloud == 'AWS' }}
+        uses: ./bp/cd/deploy/preview/aws
+        with:
+          destroy: true
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.BOT_TOKEN }}
+          aws_region: ${{ vars.PREVIEW_AWS_REGION }}
+          aws_sts_role_arn: ${{ vars.PREVIEW_AWS_STS_ROLE_ARN }}
+          aws_access_key_id: ${{ secrets.BUILD_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.BUILD_AWS_SECRET_ACCESS_KEY }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ needs.code-build.outputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          deployment_name: ${{ steps.config.outputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_AWS_EKS_CLUSTER_NAME }}
+
+      - name: Preview Destroy Azure
+        if: ${{ steps.config.outputs.cloud == 'AZURE' }}
+        uses: ./bp/cd/deploy/app/azure
+        with:
+          destroy: true
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.token }}
+          azure_service_id: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_ID }}
+          azure_service_secret: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_SECRET }}
+          azure_rg: ${{ steps.config.outputs.preview_azure_rg != '' && steps.config.outputs.preview_azure_rg || vars.PREVIEW_AZURE_RESOURCE_GROUP }}
+          terraform_state_conf: ${{ inputs.terraform_state_conf }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ inputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          deployment_name: ${{ inputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_AZURE_AKS_CLUSTER_NAME }}
+
+      - name: Preview Destroy GCP
+        if: ${{ steps.config.outputs.cloud == 'GCP' }}
+        uses: ./bp/cd/deploy/app/azure
+        with:
+          destroy: true
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.BOT_TOKEN }}
+          gcp_credentials: ${{ secrets.PREVIEW_GCP_CREDENTIALS }}
+          gcp_impersonate_sa: ${{ vars.PREVIEW_CGP_IMPERSONATE_SA }}
+          gcp_project: ${{ vars.PREVIEW_GCP_PROJECT }}
+          gcp_region: ${{ vars.PREVIEW_GCP_REGION }}
+          terraform_state_conf: ${{ inputs.terraform_state_conf }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ needs.code-build.outputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          project_owner: ${{ steps.config.outputs.project_owner }}
+          deployment_name: ${{ steps.config.outputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_GCP_GKE_CLUSTER_NAME }}
+          rancher_project_id: ${{ vars.PREVIEW_RANCHER_PROJECT_ID }}
+
+  branch_deletion:
+    if: ${{ ! cancelled() }}
+    needs:
+      - preload
+      - preview-destroy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        id: co
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+          source_ref: ${{ github.head_ref }}
+          blueprint_ref: 'v5.10'
+
+      - name: Delete local & remote Release
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') ) }}
+        working-directory: ${{ steps.co.outputs.source_path }}
+        run: |
+          RELVER=$(echo "${{ github.head_ref }}" | sed -e 's/release\///g')
+          make gitflow/release/purge:$RELVER
+
+      - name: Delete local & remote Hotfix
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'hotfix/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') ) }}
+        working-directory: ${{ steps.co.outputs.source_path }}
+        run: |
+          make gitflow/hotfix/purge
+
+      - name: Delete local & remote Feature
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'feature/') }}
+        working-directory: ${{ steps.co.outputs.source_path }}
+        run: |
+          FEATURE=$(echo "${{ github.head_ref }}" | sed -e 's/feature\///g')
+          make gitflow/feature/purge:$FEATURE

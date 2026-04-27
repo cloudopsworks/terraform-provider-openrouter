@@ -1,0 +1,229 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Scan Code SAST/DAST/SCA
+on:
+  workflow_call:
+    inputs:
+      deployment_name:
+        description: 'Deployment Name'
+        required: true
+        type: string
+      bot_user:
+        description: 'Bot User'
+        required: true
+        type: string
+      sonarqube_url:
+        description: 'SonarQube URL'
+        required: true
+        type: string
+      dtrack_url:
+        description: 'Dependency Track URL'
+        required: true
+        type: string
+      default_runner_set:
+        description: 'Default Runner Set'
+        required: true
+        type: string
+      environment:
+        description: 'Environment'
+        required: true
+        type: string
+      is_preview:
+        description: 'Is Preview Environment'
+        required: false
+        type: boolean
+        default: false
+      semver:
+        description: 'SemVer Version from build'
+        required: true
+        type: string
+
+    secrets:
+      token:
+        description: 'GitHub Token'
+        required: true
+      semgrep_token:
+        description: 'Semgrep Token'
+        required: true
+      sonarqube_token:
+        description: 'SonarQube Token'
+        required: true
+      snyk_token:
+        description: 'Snyk Token'
+        required: true
+      dtrack_token:
+        description: 'Dependency Track Token'
+        required: true
+
+
+concurrency: scan-${{ github.repository }}-${{ github.ref }}
+
+permissions:
+  contents: read
+  packages: write
+  statuses: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  preload:
+    name: Preload Configuration
+    runs-on: ubuntu-latest
+    outputs:
+      sonarqube_enabled: ${{ steps.config.outputs.sonarqube_enabled }}
+      dtrack_enabled: ${{ steps.config.outputs.dtrack_enabled }}
+      dtrack_project_type: ${{ steps.config.outputs.dtrack_project_type }}
+      snyk_enabled: ${{ steps.config.outputs.snyk_enabled }}
+      semgrep_enabled: ${{ steps.config.outputs.semgrep_enabled }}
+      apis_enabled: ${{ steps.config.outputs.apis_enabled }}
+      project_key: ${{ steps.config.outputs.project_key }}
+      runner_set: ${{ steps.config.outputs.runner_set != '' && steps.config.outputs.runner_set || inputs.default_runner_set  }}
+      fail_on_quality_gate: ${{ steps.config.outputs.fail_on_quality_gate }}
+      quality_gate_enabled: ${{ steps.config.outputs.quality_gate_enabled }}
+      trivy_enabled: ${{ steps.config.outputs.trivy_enabled }}
+      container_enabled: ${{ steps.config.outputs.container_enabled }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/scan/config
+
+  scan-semgrep:
+    name: Scan Code with semgrep
+    needs:
+      - preload
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    env:
+      SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_TOKEN }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        id: co
+        with:
+          blueprint_ref: 'v5.10'
+
+      - name: Download Target Artifacts
+        uses: ./bp/ci/common/download/artifacts
+        with:
+          bot_user: ${{ inputs.bot_user }}
+          token: ${{ secrets.token }}
+          destination_path: 'target'
+
+      - name: Semgrep Scan
+        if: ${{ needs.preload.outputs.semgrep_enabled == 'true' }}
+        uses: ./bp/ci/go/scan/semgrep
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          semgrep_token: ${{ secrets.semgrep_token }}
+          bot_user: ${{ inputs.bot_user }}
+          token: ${{ secrets.token }}
+
+
+  scan-others:
+    name: Scan Code
+    needs:
+      - preload
+    runs-on: ${{ needs.preload.outputs.runner_set }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        id: co
+        with:
+          blueprint_ref: 'v5.10'
+
+      - name: Download Target Artifacts
+        uses: ./bp/ci/common/download/artifacts
+        with:
+          bot_user: ${{ inputs.bot_user }}
+          token: ${{ secrets.token }}
+          destination_path: 'target'
+
+      - name: Snyk Scan
+        if: ${{ needs.preload.outputs.snyk_enabled == 'true' }}
+        uses: ./bp/ci/go/scan/snyk
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          snyk_token: ${{ secrets.snyk_token }}
+          bot_user: ${{ inputs.bot_user }}
+          semver: ${{ inputs.semver }}
+          token: ${{ secrets.token }}
+
+      - name: SonarQube Scan
+        if: ${{ needs.preload.outputs.sonarqube_enabled == 'true' }}
+        uses: ./bp/ci/go/scan/sonarqube
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          token: ${{ secrets.token }}
+          sonarqube_url: ${{ inputs.sonarqube_url }}
+          sonarqube_token: ${{ secrets.sonarqube_token }}
+          sonarqube_project_key: ${{ needs.preload.outputs.project_key }}
+          semver: ${{ inputs.semver }}
+
+      - name: SonarQube Scan Quality Gate
+        if: ${{ needs.preload.outputs.sonarqube_enabled == 'true' && needs.preload.outputs.quality_gate_enabled == 'true' }}
+        uses: ./bp/ci/scan/sonarqube/quality-gate
+        timeout-minutes: 5
+        continue-on-error: ${{ needs.preload.outputs.fail_on_quality_gate != 'true' }}
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          sonarqube_url: ${{ inputs.sonarqube_url }}
+          sonarqube_token: ${{ secrets.sonarqube_token }}
+
+      - name: SonarQube Scan APIS
+        if: ${{ needs.preload.outputs.sonarqube_enabled == 'true' && needs.preload.outputs.apis_enabled == 'true' }}
+        uses: ./bp/ci/api/scan/sonarqube
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          token: ${{ secrets.token }}
+          sonarqube_url: ${{ inputs.sonarqube_url }}
+          sonarqube_token: ${{ secrets.sonarqube_token }}
+          sonarqube_project_key: ${{ needs.preload.outputs.project_key }}
+          semver: ${{ inputs.semver }}
+
+      - name: Dependency track Scan
+        if: ${{ needs.preload.outputs.dtrack_enabled == 'true' }}
+        uses: ./bp/ci/go/scan/dtrack
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          token: ${{ secrets.token }}
+          dtrack_url: ${{ inputs.dtrack_url }}
+          dtrack_token: ${{ secrets.dtrack_token }}
+          dtrack_project_key: ${{ needs.preload.outputs.project_key }}
+          project_type: ${{ needs.preload.outputs.dtrack_project_type }}
+          semver: ${{ inputs.semver }}
+
+      - name: Trivy Scan
+        if: | 
+          (needs.preload.outputs.trivy_enabled == 'true') &&
+          (needs.preload.outputs.container_enabled == 'true')
+        uses: ./bp/ci/docker/scan/trivy
+        continue-on-error: true
+        with:
+          source_path: ${{ steps.co.outputs.source_path }}
+          bot_user: ${{ inputs.bot_user }}
+          token: ${{ secrets.token }}
+
+      - name: Upload Artifacts
+        uses: ./bp/ci/go/test/artifacts
+        with:
+          bot_user: ${{ inputs.bot_user }}
+          token: ${{ secrets.token }}
+

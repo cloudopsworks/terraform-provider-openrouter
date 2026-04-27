@@ -1,0 +1,254 @@
+##
+# (c) 2021-2025
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: Build Pull Request
+run-name: 'Build Pull Request - Branch: ${{ github.ref_name }}'
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - edited
+    branches:
+      - hotfix/**
+      - feature/**
+      - master
+      - release/**
+      - support/**
+      - develop
+
+concurrency: build-pull-${{ github.repository }}-${{ github.ref }}
+
+permissions:
+  actions: write
+  contents: write
+  packages: write
+  statuses: write
+  pull-requests: write
+  issues: write
+  checks: write
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          source_ref: ${{ github.head_ref }}
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Check Pull Requests
+        uses: ./bp/cd/tasks/repo/checkpr
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+
+  code-build:
+    name: 'Code Build - Branch: ${{ github.ref_name }}'
+    runs-on: ubuntu-latest
+    if: |
+      (! startsWith(github.head_ref, 'release/')) &&
+      (! startsWith(github.head_ref,'support/')) &&
+      (! startsWith(github.head_ref,'master'))
+    outputs:
+      is_release: ${{ steps.config.outputs.is_release }}
+      is_pre_release: ${{ steps.config.outputs.is_pre_release }}
+      semver: ${{ steps.build.outputs.semver }}
+      deployment_name: ${{ steps.config.outputs.deployment_name }}
+      blue_green_enabled: ${{ steps.config.outputs.blue_green_enabled }}
+      target_cloud: ${{ steps.config.outputs.target_cloud }}
+      deployment_enabled: ${{ steps.config.outputs.deployment_enabled }}
+      is_library: ${{ steps.config.outputs.is_library }}
+      cloud: ${{ steps.config.outputs.cloud }}
+      cloud_type: ${{ steps.config.outputs.cloud_type }}
+      runner_set: ${{ steps.config.outputs.runner_set != '' && steps.config.outputs.runner_set || vars.PREVIEW_RUNNER_SET }}
+      apis_enabled: ${{ steps.config.outputs.apis_enabled }}
+      container_enabled: ${{ steps.config.outputs.container_enabled }}
+      has_preview: ${{ steps.config.outputs.has_preview }}
+      project_key: ${{ steps.config.outputs.project_key }}
+      project_owner: ${{ steps.config.outputs.project_owner }}
+      environment: ${{ steps.config.outputs.environment }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          source_ref: ${{ github.head_ref }}
+          blueprint_ref: 'v5.10'
+
+      - name: Pipeline Configuration
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Build GoLang
+        id: build
+        uses: ./bp/ci/go/build
+        with:
+          bot_user: ${{ vars.BOT_USER }}
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Deploy Component
+        if: steps.config.outputs.is_library == 'true'
+        uses: ./bp/ci/go/deploy
+        with:
+          bot_user: ${{ vars.BOT_USER }}
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Save Build Artifacts
+        uses: ./bp/ci/go/artifacts
+
+      - name: Build & Save Container
+        if: steps.config.outputs.container_enabled == 'true'
+        uses: ./bp/ci/go/container
+        with:
+          semver: ${{ steps.build.outputs.semver }}
+          golang_version: ${{ steps.build.outputs.golang_version }}
+          golang_dist: ${{ steps.build.outputs.golang_dist }}
+          golang_arch: ${{ steps.build.outputs.golang_arch }}
+          golang_image_variant: ${{ steps.build.outputs.golang_image_variant }}
+          environment: ${{ steps.config.outputs.environment }}
+          package_name: ${{ steps.build.outputs.package_name }}
+          is_release: ${{ steps.config.outputs.is_release }}
+          default_registry_address: ${{ vars.DOCKER_REGISTRY_ADDRESS }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          project_owner: ${{ steps.config.outputs.project_owner }}
+
+  deploy-container:
+    needs:
+      - code-build
+    if: |
+      (needs.code-build.outputs.container_enabled == 'true') &&
+      (needs.code-build.outputs.deployment_enabled == 'true') &&
+      (needs.code-build.outputs.is_library != 'true')
+    uses: ./.github/workflows/deploy-container.yml
+    with:
+      deployment_name: ${{ needs.code-build.outputs.deployment_name }}
+      cloud: ${{ needs.code-build.outputs.cloud }}
+      cloud_type: ${{ needs.code-build.outputs.cloud_type }}
+      runner_set: ${{ needs.code-build.outputs.runner_set }}
+      default_aws_region: ${{ vars.PREVIEW_AWS_REGION }}
+      default_aws_sts_role_arn: ${{ vars.PREVIEW_AWS_STS_ROLE_ARN }}
+      default_azure_rg: ${{ vars.PREVIEW_AZURE_RG }}
+      default_registry_address: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+      project_key: ${{ needs.code-build.outputs.project_key }}
+      project_owner: ${{ needs.code-build.outputs.project_owner }}
+    secrets:
+      token: ${{ secrets.BOT_TOKEN }}
+      aws_access_key_id: ${{ secrets.BUILD_AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.BUILD_AWS_SECRET_ACCESS_KEY }}
+      azure_service_id: ${{ secrets.BUILD_AZURE_SERVICE_ID }}
+      azure_service_secret: ${{ secrets.BUILD_AZURE_SERVICE_SECRET }}
+      gcp_credentials: ${{ secrets.BUILD_GCP_CREDENTIALS }}
+
+  preview:
+    name: 'Preview Deployment'
+    needs:
+      - code-build
+      - deploy-container
+    if: needs.code-build.outputs.has_preview == 'true'
+    runs-on: ${{ needs.code-build.outputs.runner_set }}
+    steps:
+      - name: Checkout w/Blueprint
+        uses: cloudopsworks/blueprints/cd/checkout@v5.10
+        with:
+          source_ref: ${{ github.head_ref }}
+          blueprint_ref: 'v5.10'
+
+      # Get Pipeline Config
+      - name: Get Pipeline Config
+        id: config
+        uses: ./bp/ci/config
+
+      - name: Deploy AWS
+        if: ${{ steps.config.outputs.cloud == 'AWS' }}
+        uses: ./bp/cd/deploy/preview/aws
+        with:
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.BOT_TOKEN }}
+          aws_region: ${{ vars.PREVIEW_AWS_REGION }}
+          aws_sts_role_arn: ${{ vars.PREVIEW_AWS_STS_ROLE_ARN }}
+          aws_access_key_id: ${{ secrets.PREVIEW_AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.PREVIEW_AWS_SECRET_ACCESS_KEY }}
+          terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ needs.code-build.outputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          project_owner: ${{ steps.config.outputs.project_owner }}
+          deployment_name: ${{ steps.config.outputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_AWS_EKS_CLUSTER_NAME }}
+          rancher_project_id: ${{ vars.PREVIEW_RANCHER_PROJECT_ID }}
+
+      - name: Deploy Azure
+        if: ${{ steps.config.outputs.cloud == 'AZURE' }}
+        uses: ./bp/cd/deploy/preview/azure
+        with:
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.BOT_TOKEN }}
+          azure_service_id: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_ID }}
+          azure_service_secret: ${{ secrets.DEPLOYMENT_AZURE_SERVICE_SECRET }}
+          azure_rg: ${{ steps.config.outputs.preview_azure_rg != '' && steps.config.outputs.preview_azure_rg || vars.PREVIEW_AZURE_RESOURCE_GROUP }}
+          terraform_state_conf: ${{ inputs.terraform_state_conf }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ needs.code-build.outputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          project_owner: ${{ steps.config.outputs.project_owner }}
+          deployment_name: ${{ steps.config.outputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_AZURE_AKS_CLUSTER_NAME }}
+          rancher_project_id: ${{ vars.PREVIEW_RANCHER_PROJECT_ID }}
+
+      - name: Deploy GCP
+        if: ${{ steps.config.outputs.cloud == 'GCP' }}
+        uses: ./bp/cd/deploy/preview/gcp
+        with:
+          cloud_type: ${{ steps.config.outputs.cloud }}
+          token: ${{ secrets.BOT_TOKEN }}
+          gcp_credentials: ${{ secrets.PREVIEW_GCP_CREDENTIALS }}
+          gcp_impersonate_sa: ${{ vars.PREVIEW_CGP_IMPERSONATE_SA }}
+          gcp_project: ${{ vars.PREVIEW_GCP_PROJECT }}
+          gcp_region: ${{ vars.PREVIEW_GCP_REGION }}
+          terraform_state_conf: ${{ inputs.terraform_state_conf }}
+          release_name: ${{ steps.config.outputs.release_name }}
+          release_version: ${{ needs.code-build.outputs.semver }}
+          project_key: ${{ steps.config.outputs.project_key }}
+          project_owner: ${{ steps.config.outputs.project_owner }}
+          deployment_name: ${{ steps.config.outputs.deployment_name }}
+          environment: ${{ steps.config.outputs.environment }}
+          container_registry: ${{ vars.PREVIEW_DOCKER_REGISTRY_ADDRESS }}
+          pull_request_name: pr${{ github.event.pull_request.number }}
+          cluster_name: ${{ vars.PREVIEW_GCP_GKE_CLUSTER_NAME }}
+          rancher_project_id: ${{ vars.PREVIEW_RANCHER_PROJECT_ID }}
+
+  scan:
+    name: 'Code Scan SAST/SCA/DAST'
+    needs:
+      - code-build
+    uses: ./.github/workflows/scan.yml
+    with:
+      deployment_name: ${{ needs.code-build.outputs.deployment_name }}
+      semver: ${{ needs.code-build.outputs.semver }}
+      bot_user: ${{ vars.BOT_USER }}
+      sonarqube_url: ${{ vars.SONARQUBE_URL }}
+      dtrack_url: ${{ vars.DEPENDENCYTRACK_URL }}
+      default_runner_set: ${{ vars.DEPLOYMENT_RUNNER_SET }}
+      environment: ${{ needs.code-build.outputs.environment }}
+      is_preview: true
+    secrets:
+      token: ${{ secrets.BOT_TOKEN }}
+      sonarqube_token: ${{ secrets.SONARQUBE_TOKEN }}
+      snyk_token: ${{ secrets.SNYK_TOKEN }}
+      semgrep_token: ${{ secrets.SEMGREP_TOKEN }}
+      dtrack_token: ${{ secrets.DEPENDENCYTRACK_TOKEN }}

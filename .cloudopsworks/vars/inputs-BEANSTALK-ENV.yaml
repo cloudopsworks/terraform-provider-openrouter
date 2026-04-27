@@ -1,0 +1,193 @@
+environment: "dev|uat|prod|demo"
+runner_set: "RUNNER-ENV"
+#disable_deploy: true
+versions_bucket: "VERSIONS_BUCKET"
+#logs_bucket: "LOGS_BUCKET"
+#blue_green: true # uncomment for Prod environment to support blue/green deploy
+container_registry: REGISTRY # optional if Preview = false, can comment out
+aws:
+  region: "AWS_REGION"
+#  sts_role_arn: "AWS_STS_ROLE_ARN" # Optional: when existing role is same for build and deploy
+#  build_sts_role_arn: "BUILD_AWS_STS_ROLE_ARN" # Optional: when existing role is different for build and deploy
+#  deploy_sts_role_arn: "DEPLOYMENT_AWS_STS_ROLE_ARN" # Optional: when existing role is different for build and deploy
+dns:
+  enabled: true
+  private_zone: false
+  domain_name: DOMAIN_NAME
+  alias_prefix: ALIAS_PREFIX
+alarms:
+  enabled: false
+  threshold: 15
+  period: 120
+  evaluation_periods: 2
+  destination_topic: DESTINATION_SNS
+api_gateway:
+  enabled: false
+  vpc_link:
+    #link_name: VPC_LINK_NAME # Optional: only valid when existing link is NOT used
+    use_existing: false
+    #lb_name: LOAD_BALANCER_NAME
+    #listener_port: 8443
+    #to_port: 443
+    #health: # Enable this and below to change the type of healthcheck
+    #  enabled: true
+    #  protocol: HTTPS
+    #  http_status: "200-401"
+    #  path: "/"
+beanstalk:
+  # Solution stack is one of:
+  #  java         = "^64bit Amazon Linux 2023 (.*) running Corretto 21(.*)$"
+  #  java8        = "^64bit Amazon Linux 2 (.*) running Corretto 8(.*)$"
+  #  java11       = "^64bit Amazon Linux 2 (.*) running Corretto 11(.*)$"
+  #  java17       = "^64bit Amazon Linux 2 (.*) running Corretto 17(.*)$"
+  #  tomcat       = "^64bit Amazon Linux 2023 (.*) Tomcat (.*) Corretto 21(.*)$"
+  #  java17_23    = "^64bit Amazon Linux 2023 (.*) running Corretto 17(.*)$"
+  #  tomcatj8     = "^64bit Amazon Linux 2 (.*) Tomcat (.*) Corretto 8(.*)$"
+  #  tomcatj11    = "^64bit Amazon Linux 2 (.*) Tomcat (.*) Corretto 11(.*)$"
+  #  tomcatj17    = "^64bit Amazon Linux 2023 (.*) Tomcat (.*) Corretto 17(.*)$"
+  #  node         = "^64bit Amazon Linux 2023 (.*) Node.js 20(.*)$"
+  #  node22       = "^64bit Amazon Linux 2023 (.*) Node.js 22(.*)$"
+  #  node14       = "^64bit Amazon Linux 2 (.*) Node.js 14(.*)$"
+  #  node16       = "^64bit Amazon Linux 2 (.*) Node.js 16(.*)$"
+  #  node18       = "^64bit Amazon Linux 2 (.*) Node.js 18(.*)$"
+  #  node18_23    = "^64bit Amazon Linux 2023 (.*) Node.js 18(.*)$"
+  #  go           = "^64bit Amazon Linux 2 (.*) running Go (.*)$"
+  #  docker       = "^64bit Amazon Linux 2 (.*) running Docker (.*)$"
+  #  docker-m     = "^64bit Amazon Linux 2 (.*) Multi-container Docker (.*)$"
+  #  dotnet-core  = "^64bit Amazon Linux 2 (.*) running .NET Core(.*)$"
+  #  dotnet-6     = "^64bit Amazon Linux 2023 (.*) running .NET 6(.*)$"
+  #  dotnet-8     = "^64bit Amazon Linux 2023 (.*) running .NET 8(.*)$"
+  #  dotnet-9     = "^64bit Amazon Linux 2023 (.*) running .NET 9(.*)$"
+  #  dotnet       = "^64bit Amazon Linux 2023 (.*) running .NET 9(.*)$"
+  #  python       = "^64bit Amazon Linux 2023 (.*) running Python 3.13(.*)$"
+  #  python313    = "^64bit Amazon Linux 2023 (.*) running Python 3.13(.*)$"
+  #  python312    = "^64bit Amazon Linux 2023 (.*) running Python 3.12(.*)$"
+  #  python311    = "^64bit Amazon Linux 2023 (.*) running Python 3.11(.*)$"
+  #  python39     = "^64bit Amazon Linux 2023 (.*) running Python 3.9(.*)$"
+  #  python38     = "^64bit Amazon Linux 2 (.*) running Python 3.8(.*)$"
+  #  python37     = "^64bit Amazon Linux 2 (.*) running Python 3.7(.*)$"
+  #  net-core-w16 = "^64bit Windows Server Core 2016 (.*) running IIS (.*)$"
+  #  net-core-w19 = "^64bit Windows Server Core 2019 (.*) running IIS (.*)$"
+  #  net-core-w22 = "^64bit Windows Server Core 2022 (.*) running IIS (.*)$"
+  #  net-core-w25 = "^64bit Windows Server Core 2025 (.*) running IIS (.*)$"
+  #  dotnet-w16   = "^64bit Windows Server 2016 (.*) running IIS (.*)$"
+  #  dotnet-w19   = "^64bit Windows Server 2019 (.*) running IIS (.*)$"
+  #  dotnet-w22   = "^64bit Windows Server 2022 (.*) running IIS (.*)$"
+  #  dotnet-w25   = "^64bit Windows Server 2025 (.*) running IIS (.*)$"
+  # Can specify complete name for certain environments to Stick the stack to a specific version.
+  solution_stack: go
+  application: APPLICATION
+  #wait_for_ready_timeout: "20m"
+  iam:
+    instance_profile: INSTANCE_PROFILE
+    service_role: SERVICE_ROLE
+  load_balancer:
+    # Shared Load Balancer configuration subset
+    #shared:
+    #  dns:
+    #    enabled: false
+    #  enabled: false
+    #  name: SHARED_LB_NAME
+    #  weight: 100
+    public: true
+    ssl_certificate_id: SSL_CERTIFICATE_ID
+    ssl_policy: ELBSecurityPolicy-2016-08
+    alias: LOAD_BALANCER_ALIAS
+  instance:
+    instance_port: 8080
+    enable_spot: true
+    default_retention: 90
+    volume_size: 20
+    volume_type: gp2
+    ec2_key: EC2_KEY
+    ami_id: AMI_ID
+    server_types:
+      - SERVER TYPE1
+      - SERVER TYPE2
+    #pool: # Instance Pool elasticity minimum & maximum number of instances
+    #  min: 1
+    #  max: 1
+  networking:
+    private_subnets: []
+    #      - SUBNET_ID
+    #      - SUBNET_ID2
+    public_subnets: []
+    #      - SUBNET_ID3
+    #      - SUBNET_ID4
+    vpc_id: VPC_ID
+  ##
+  # Optional variable for mapping ports to backend ports:
+  port_mappings:
+    - name: default
+      from_port: 80
+      to_port: 80
+      protocol: HTTP
+      health_check: # for custom target group
+        enabled: true
+        path: "/health"
+#    - name: port443
+#      from_port: 443
+#      to_port: 8443
+#      protocol: HTTPS
+#      backend_protocol: HTTPS
+#      health_check: # for custom target group
+#        enabled: true
+#        protocol: HTTPS
+#        port: 8443 | traffic-port
+#        matcher: "200-302"
+#        path: "/"
+#        unhealthy_threshold: 2
+#        healthy_threshold: 2
+#        timeout: 5
+#        interval: 30
+#      # Rules are required if custom_shared_rules=false or not set
+#      rules:
+#        - RULENAME
+
+  ##
+  # Optional variable for adding extra tags to the environment
+  extra_tags: {}
+  #    key: value
+  #    key2: value2
+  extra_settings:
+    - name: "PORT"
+      namespace: "aws:elasticbeanstalk:application:environment"
+      resource: ""
+      value: "8080"
+    - name: "Application Healthcheck URL"
+      namespace: "aws:elasticbeanstalk:application"
+      resource: ""
+      value: "/health"
+  #    - name: SETTING_NAME
+  #      namespace: aws:NAMESPACE
+  #      resource: ""
+  #      value: "<VALUE>"
+  #    - name: SETTING_NAME_2
+  #      namespace: aws:NAMESPACE_2
+  #      resource: ""
+  #      value: "<VALUE>"
+  ##
+  # Enable custom shared Rules where below rule mappings mandate over elastic beanstalk configuration.
+  #custom_shared_rules: true
+  ##
+  # Optional Variable for mapping rules for shared Load Balancer
+  rule_mappings: []
+#    - name: RULENAME
+#      process: port_mapping_process
+#      host: host.address.com,host.address2.com
+#      path: /path
+#      priority: 100
+#      path_patterns:
+#        - /path
+#      query_strings:
+#        - query1=value1
+#        - query2=value2
+#      http_headers:
+#        - name: HEADERNAME
+#          values: ["value1", "valuepattern*"]
+#      source_ips:
+#        - IP1
+#        - IP2
+tags: {}
+# TAG1: value1
+# TAG2: value2
