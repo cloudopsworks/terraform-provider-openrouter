@@ -1,27 +1,27 @@
-// main.go
 package main
 
 import (
-	"hello-service/internal/server"
+	"context"
+	"flag"
 	"log"
-	"os"
+
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+
+	"github.com/cloudopsworks/terraform-provider-openrouter/internal/provider"
 )
 
+var version = "dev"
+
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	var debug bool
+	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
+	flag.Parse()
 
-	log.Printf("Server version: %s", Version)
-
-	srv, err := server.NewServer(port)
+	err := providerserver.Serve(context.Background(), provider.New(version), providerserver.ServeOpts{
+		Address: "registry.terraform.io/cloudopsworks/openrouter",
+		Debug:   debug,
+	})
 	if err != nil {
-		log.Fatalf("Failed to create server: %v", err)
-	}
-
-	log.Printf("Starting server on port %s", port)
-	if err := srv.Start(); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		log.Fatal(err.Error())
 	}
 }

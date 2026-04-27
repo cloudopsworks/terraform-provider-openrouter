@@ -1,35 +1,66 @@
-# go-app-template
+# Terraform Provider OpenRouter
 
-Go Lang Application Template with Github Action Gitops
+Terraform/OpenTofu provider for the OpenRouter management API.
 
-## Makefile Targets Usage
+## Features
 
-### code/init Target
+- Resources
+  - `openrouter_api_key`
+  - `openrouter_workspace`
+  - `openrouter_guardrail`
+- Data sources
+  - `openrouter_api_keys`
+  - `openrouter_workspaces`
+  - `openrouter_guardrails`
+  - `openrouter_organization`
+  - `openrouter_providers`
 
-The `code/init` target initializes your Go application with the following actions:
+## Requirements
 
-- Installs required packages (gitversion, gh, yq)
-- Removes the existing go.mod file
-- Initializes a new Go module with the current project name
-- Runs `go mod tidy` to ensure dependencies are properly managed
-- Replaces all instances of "hello-service" with your project name in all Go files
+- Terraform `>= 1.7`
+- OpenTofu `>= 1.7`
+- OpenRouter **management** API key
 
-Usage:
+## Provider configuration
 
-```bash
-make code/init
+```hcl
+terraform {
+  required_providers {
+    openrouter = {
+      source  = "cloudopsworks/openrouter"
+      version = "0.1.0"
+    }
+  }
+}
+
+provider "openrouter" {
+  api_key = var.openrouter_management_key
+}
 ```
 
-### version Target
+You can also set `OPENROUTER_API_KEY` instead of `api_key`.
 
-The `version` target creates a VERSION file for your application using GitVersion:
+## Known limitations in v1
 
-- If the current commit is a Git tag, it extracts the version from the tag
-- Otherwise, it uses GitVersion to generate a semantic version
-- Replaces '+' with '-' in the version string for compatibility with Docker and Helm
+- OpenRouter returns the actual API key secret only on create. The provider exposes it as `key` and marks it sensitive, but with Terraform/OpenTofu 1.7 it can still live in state.
+- `openrouter_workspace` intentionally does **not** model `io_logging_api_key_ids` because the official docs show it in update requests but not as a stable round-trippable read field.
+- `openrouter_organization` is implemented from the documented organization-members endpoint.
+- Guardrails are managed by guardrail ID/name because current official guardrail CRUD docs do not expose a workspace field.
 
-Usage:
+## Import
 
-```bash
-make version
+- `openrouter_api_key`: canonical hash, or `<workspace_id>_<name>`
+- `openrouter_workspace`: canonical id/slug, or `<workspace_id>_<slug-or-name>`
+- `openrouter_guardrail`: canonical id, or best-effort `<ignored>_<name>` when the name is unique
+
+## Development
+
+```sh
+gofmt -w .
+go test ./...
 ```
+
+
+## Blueprint integration
+
+This repository is aligned to the CloudOpsWorks `go-app-template` blueprint for CI, PR checks, release automation, scanning, and repository management. Deployment-specific sample configuration from the app template has been removed intentionally; release-management workflows remain enabled through the shared blueprint.

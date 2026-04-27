@@ -1,149 +1,16 @@
-organization_name: "ORG_NAME"
-organization_unit: "ORG_UNIT"
-environment_name: "ENV_NAME"
-repository_owner: "REPO_OWNER" # Required
-#
-## Default Go version is 1.25, uncomment to build with different version,
-## Dist is the OS distribution, arch is the architecture
-## Image variant should be used for the specific version of OS image to run
+organization_name: "CloudOpsWorks"
+organization_unit: "Providers"
+environment_name: "terraform-provider-openrouter"
+repository_owner: "cloudopsworks"
+
 golang:
+  version: "1.24"
   main_file: .
-#  version: 1.23
-#  dist: linux
-#  arch: amd64
-#  image_variant: alpine:3.21
-#  disable_cgo: true # uncomment to disable CGO (pure golang build), useful on some cases
-#
-# Set Snyk processing to true if want to enable, the tool is disabled by default
-#snyk:
-#  enabled: true
-#
-# Set Semgrep processing to true if want to enable, the tool is disabled by default
-#semgrep:
-#  enabled: true
-#
-# Set Trivy processing to true if want to enable Docker Image scan, the tool is disabled by default
-#trivy:
-#  enabled: true
-#
-# Set Sonarqube processing to true if want to enable, the tool is disabled by default
-#sonarqube:
-#  enabled: true
-#  fail_on_quality_gate: true
-#  quality_gate_enabled: false # defaults to true
-#  sources_path: "src/"
-#  binaries_path: "target/classes"
-#  libraries_path: "target/libs/**/*.jar" # defaults to blank
-#  tests_path: "src/"
-#  tests_binaries: "target/test-classes"
-#  tests_inclusions: "src/**/test/**/*"
-#  tests_libraries: "target/libs/**/*.jar" # defaults to blank
-#  exclusions: "target/**,"src/**/test/**/*"
-#  extra_exclusions:
-#  branch_disabled: true # uncomment only if you are using Community Sonarqube
-#
-# JIRA Integration for Release Management
-#jira:
-#  enabled: true | false # Defaults to true, set to false to disable, JIRA_INTEGRATION_ENABLED at organization setting enables or disables globally
-#  project_id: "PROJECT ID NUMBER" # Optional, if not set will default to JIRA_INTEGRATION_PROJECT_ID from organization
-#  project_key: "PROJECT KEY" # Optional,  if not set will default to JIRA_INTEGRATION_PROJECT_KEY from organization
-#
-# Set DependencyTrack processing to false if want to disable, the tool is enabled by default
-# type: is one of => Library , Application , Container , Framework , Device , Firmware , File , Operating System
-#       Default type is Application
-#dependencyTrack:
-#  enabled: true
-#  type: Application
-#
-# Set if this is a library project
-#isLibrary: true # DEPRECATED!
-#is_library: true
-#
-# Dockerfile Inline content that will be merged into the Dockerfile
-#docker_inline: |
-#  # Dockerfile content here
-#  # Example:
-#  # WORKDIR /app
-#  # COPY package*.json ./
-#  # COPY ./mydir ./my dest
-#
-# Docker Arguments that will be passed to Docker Build Process
-#docker_args: |
-#  ARG1=value1
-#  ARG2=value2
-#  ARG3=value3
-#
-# Custom command that will be placed as startup script in dockerfile
-#custom_run_command: alternate_script.sh
-#
-# Custom User Group Command, this command can be uncommented in some cases to cover the proper
-# User creation on images like based on Busybox or Redhat UBI-8/9 or Fedora
-#custom_usergroup: |
-#  groupadd --gid $GROUP_ID --system $GROUP_NAME \
-#    && useradd --uid $USER_ID --system --gid $GROUP_ID --home /app/webapp $USER_NAME
-#
-# Path where the API definitions are stored if different of default ./apifiles
-#api_files_dir: "relative-path-to-apidefs"
-#
-# Optional Additional ENV variables
-#build_options: ""
-#
-# Preview configuration, if enabled will create a preview environment for each PR
-#preview:
-#  enabled: true
-#  kubernetes: true
-#  domain: example.com
-#  azure:
-#    resource_group: PREVIEW_RG
-#  gcp:
-#    project_id: PREVIEW_PROJECT_ID
-#
-# API Gateway configuration, if enabled will deploy apis to the environment api gateway
-# configuration is done under .cloudopsworks/vars/apigw/
-#apis:
-#  enabled: true
-#
-# Observability configuration: if enabled will deploy observability tools to the environment
-#observability:
-#  enabled: true
-#  agent: xray | newrelic | datadog | dynatrace (optional: defaults to xray)
-#  config:
-#    # XRAY agent Configuration
-#    configFilePath: /app/xray
-#    configFileName: xray-config.json
-#    contextMissingStrategy: LOG_ERROR
-#    tracingEnabled: "true"
-#    samplingStrategy: CENTRAL | LOCAL | NONE | ALL
-#    traceIdInjectionPrefix: ""
-#    samplingRulesManifest: "path-to-sampling-rules-manifest"
-#    awsServiceHandlerManifest: "path-to-aws-service-handler-manifest"
-#    awsSdkVersion: 1 | 2
-#    maxStackTraceLength: 50
-#    streamingThreshold: 100
-#    traceIdInjection: "true"
-#    pluginsEnabled: "true"
-#    collectSqlQueries: "false"
-#    contextPropagation: "true"
-#    # DataDog agent Configuration
-#    tags: tag1=value1,tag2=value2
-#    logs_enabled: "true"
-#    logs_config_container_collect_all: "true"
-#    container_exclude_logs: "name:datadog-agent"
-#    trace_debug: "false"
-#    logs_injection: "true"
-#    profiling_enabled: "true"
-#    trace_sample_rate: 1.0
-#    trace_sampling_rules: "path-to-sampling-rules"
-#    apm_non_local_traffic: "true"
-#    apm_enabled: "true"
-#    dogstatsd_non_local_traffic: "true"
-#    http_client_error_statuses: "400,401,403,404,405,409,410,429,500,501,502,503,504,505"
-#    http_server_error_statuses: "500,501,502,503,504,505"
-#
-## CD pipeline configuration uncomment and configure accordingly to enable
-# Target Cloud
-cloud: aws | azure | gcp
-# Cloud deployment type depends on the target cloud
-cloud_type: beanstalk | eks | lambda | aks | webapp | function | gke | appengine | cloudrun | kubernetes
-# Indicate the Runner that will be used for the deployment - usually will be a hosted runner
-# runner_set: "arc-runner-set"
+
+semgrep:
+  enabled: true
+
+is_library: true
+
+cloud: aws
+cloud_type: lambda
