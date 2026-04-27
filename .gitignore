@@ -51,3 +51,6 @@ go.work.sum
 .tronador*.mk
 .tronador
 tronador/
+dist/
+.gocache2/
+.gomodcache2/
