@@ -5,14 +5,28 @@ Use the OpenRouter provider to manage OpenRouter management-plane resources with
 ## Example Usage
 
 ```hcl
+terraform {
+  required_providers {
+    openrouter = {
+      source  = "cloudopsworks/openrouter"
+      version = "~> 0.1"
+    }
+  }
+}
+
 provider "openrouter" {
   api_key = var.openrouter_management_key
 }
 ```
 
+## Argument Reference
+
+- `api_key` - (Optional, Sensitive) OpenRouter management API key. Can also be supplied with `OPENROUTER_API_KEY`.
+- `base_url` - (Optional) Override for the OpenRouter management API base URL. Defaults to `https://openrouter.ai/api/v1`.
+
 ## Authentication
 
-The provider requires an OpenRouter **management** key. It validates the key at provider configure time.
+The provider requires an OpenRouter **management** key and validates that requirement during provider configuration.
 
 ## Supported Resources
 
