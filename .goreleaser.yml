@@ -1,5 +1,11 @@
 # Visit https://goreleaser.com for documentation on how to customize this
 # behavior.
+version: 2
+
+project_name: terraform-provider-openrouter
+
+dist: dist
+
 before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
