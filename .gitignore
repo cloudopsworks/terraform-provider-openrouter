@@ -54,3 +54,11 @@ tronador/
 dist/
 .gocache2/
 .gomodcache2/
+
+# AI excludes
+.claude/
+.ai/
+.omc/
+.omx/
+.gstack/
+.opencode/
