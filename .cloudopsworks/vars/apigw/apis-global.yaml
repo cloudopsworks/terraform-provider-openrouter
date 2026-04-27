@@ -1,4 +1,0 @@
-provider: aws
-apis:
-  - name: test
-    version: v2
