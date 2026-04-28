@@ -46,6 +46,9 @@ func (r *guardrailResource) Metadata(_ context.Context, req resource.MetadataReq
 }
 
 func (r *guardrailResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter guardrail resource", err.Error())

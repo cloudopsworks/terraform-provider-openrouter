@@ -33,6 +33,9 @@ func (d *apiKeysDataSource) Metadata(_ context.Context, req datasource.MetadataR
 }
 
 func (d *apiKeysDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter API keys data source", err.Error())

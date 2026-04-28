@@ -47,6 +47,9 @@ func (r *workspaceResource) Metadata(_ context.Context, req resource.MetadataReq
 }
 
 func (r *workspaceResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter workspace resource", err.Error())

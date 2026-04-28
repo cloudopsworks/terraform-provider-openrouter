@@ -27,6 +27,9 @@ func (d *organizationDataSource) Metadata(_ context.Context, req datasource.Meta
 }
 
 func (d *organizationDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter organization data source", err.Error())

@@ -57,6 +57,9 @@ func (r *apiKeyResource) Metadata(_ context.Context, req resource.MetadataReques
 }
 
 func (r *apiKeyResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter API key resource", err.Error())

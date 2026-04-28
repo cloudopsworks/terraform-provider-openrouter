@@ -27,6 +27,9 @@ func (d *workspacesDataSource) Metadata(_ context.Context, req datasource.Metada
 }
 
 func (d *workspacesDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
 	providerData, err := configureClient(req.ProviderData)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to configure OpenRouter workspaces data source", err.Error())
