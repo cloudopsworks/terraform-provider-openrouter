@@ -17,7 +17,7 @@ resource "openrouter_api_key" "service" {
 ## Argument Reference
 
 - `name` - (Required) Name of the API key.
-- `workspace_id` - (Required, Forces replacement) Workspace UUID used for deterministic key management.
+- `workspace_id` - (Optional, Computed, Forces replacement) Workspace UUID to send during key creation. If omitted, the provider records the workspace returned by OpenRouter.
 - `limit` - (Optional) Spending limit in USD.
 - `limit_reset` - (Optional) Reset interval: `daily`, `weekly`, `monthly`, or unset for no reset.
 - `include_byok_in_limit` - (Optional) Whether BYOK usage counts toward the limit.
@@ -44,4 +44,4 @@ In addition to the arguments above, the resource exports:
 terraform import openrouter_api_key.service <workspace_id>_<name>
 ```
 
-You can also import by canonical API key hash.
+You can also import by canonical API key hash, which is the preferred import path when `workspace_id` was omitted from configuration.

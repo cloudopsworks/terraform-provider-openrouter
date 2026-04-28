@@ -74,7 +74,7 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 		Attributes: map[string]resourceschema.Attribute{
 			"id":                    resourceschema.StringAttribute{Computed: true, MarkdownDescription: "Stable API key hash."},
 			"name":                  resourceschema.StringAttribute{Required: true, MarkdownDescription: "Name of the API key."},
-			"workspace_id":          resourceschema.StringAttribute{Required: true, MarkdownDescription: "Workspace UUID for deterministic API key management.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"workspace_id":          resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Optional workspace UUID to send during API key creation. When omitted, the provider records whatever workspace the API returns.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"limit":                 resourceschema.Float64Attribute{Optional: true, Computed: true, MarkdownDescription: "Spending limit in USD."},
 			"limit_remaining":       resourceschema.Float64Attribute{Computed: true, MarkdownDescription: "Remaining limit in USD."},
 			"limit_reset":           resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Reset interval: daily, weekly, monthly, or null for no reset."},
