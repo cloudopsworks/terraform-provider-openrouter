@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 const DefaultBaseURL = "https://openrouter.ai/api/v1"
@@ -218,10 +220,25 @@ func (c *Client) ListProviders(ctx context.Context) ([]ProviderInfo, error) {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
+	start := time.Now()
+	traceCtx := tflog.SetField(ctx, "openrouter_base_url", c.baseURL)
+	traceCtx = tflog.NewSubsystem(traceCtx, "openrouter_client", tflog.WithRootFields())
+	tflog.SubsystemTrace(traceCtx, "openrouter_client", "sending OpenRouter API request", map[string]interface{}{
+		"http_method":   method,
+		"http_path":     path,
+		"query_present": len(query) > 0,
+		"body_present":  body != nil,
+	})
+
 	var bodyReader io.Reader
 	if body != nil {
 		payload, err := json.Marshal(body)
 		if err != nil {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to marshal OpenRouter API request body", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+				"error":       err.Error(),
+			})
 			return err
 		}
 		bodyReader = bytes.NewReader(payload)
@@ -229,6 +246,11 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to build OpenRouter API request URL", map[string]interface{}{
+			"http_method": method,
+			"http_path":   path,
+			"error":       err.Error(),
+		})
 		return err
 	}
 	if len(query) > 0 {
@@ -237,6 +259,11 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), bodyReader)
 	if err != nil {
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to create OpenRouter API request", map[string]interface{}{
+			"http_method": method,
+			"http_path":   path,
+			"error":       err.Error(),
+		})
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
@@ -250,25 +277,73 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API request failed", map[string]interface{}{
+			"http_method": method,
+			"http_path":   path,
+			"duration_ms": time.Since(start).Milliseconds(),
+			"error":       err.Error(),
+		})
 		return err
 	}
 	defer resp.Body.Close()
 
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to read OpenRouter API response", map[string]interface{}{
+			"http_method": method,
+			"http_path":   path,
+			"status_code": resp.StatusCode,
+			"duration_ms": time.Since(start).Milliseconds(),
+			"error":       err.Error(),
+		})
 		return err
 	}
+
+	tflog.SubsystemTrace(traceCtx, "openrouter_client", "received OpenRouter API response", map[string]interface{}{
+		"http_method":  method,
+		"http_path":    path,
+		"status_code":  resp.StatusCode,
+		"duration_ms":  time.Since(start).Milliseconds(),
+		"body_present": len(payload) > 0,
+	})
 
 	if resp.StatusCode >= 400 {
 		var apiErr ErrorResponse
 		if err := json.Unmarshal(payload, &apiErr); err == nil && apiErr.Error.Message != "" {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API returned an error response", map[string]interface{}{
+				"http_method":  method,
+				"http_path":    path,
+				"status_code":  resp.StatusCode,
+				"duration_ms":  time.Since(start).Milliseconds(),
+				"error":        apiErr.Error.Message,
+				"error_code":   apiErr.Error.Code,
+				"body_present": len(payload) > 0,
+			})
 			return fmt.Errorf("openrouter API error (%d): %s", resp.StatusCode, apiErr.Error.Message)
 		}
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API returned an error response", map[string]interface{}{
+			"http_method":  method,
+			"http_path":    path,
+			"status_code":  resp.StatusCode,
+			"duration_ms":  time.Since(start).Milliseconds(),
+			"error":        strings.TrimSpace(string(payload)),
+			"body_present": len(payload) > 0,
+		})
 		return fmt.Errorf("openrouter API error (%d): %s", resp.StatusCode, strings.TrimSpace(string(payload)))
 	}
 
 	if out == nil || len(payload) == 0 {
 		return nil
 	}
-	return json.Unmarshal(payload, out)
+	if err := json.Unmarshal(payload, out); err != nil {
+		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to decode OpenRouter API response", map[string]interface{}{
+			"http_method": method,
+			"http_path":   path,
+			"status_code": resp.StatusCode,
+			"duration_ms": time.Since(start).Milliseconds(),
+			"error":       err.Error(),
+		})
+		return err
+	}
+	return nil
 }
