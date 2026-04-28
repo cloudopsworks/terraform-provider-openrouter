@@ -52,8 +52,8 @@ go.work.sum
 .tronador
 tronador/
 dist/
-.gocache2/
-.gomodcache2/
+.gocache*/
+.gomodcache*/
 
 # AI excludes
 .claude/

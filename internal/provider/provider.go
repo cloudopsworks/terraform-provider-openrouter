@@ -155,6 +155,7 @@ func (p *openRouterProvider) Resources(_ context.Context) []func() resource.Reso
 
 func (p *openRouterProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
+		NewWorkspaceDataSource,
 		NewAPIKeysDataSource,
 		NewWorkspacesDataSource,
 		NewGuardrailsDataSource,

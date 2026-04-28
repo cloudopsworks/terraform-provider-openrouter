@@ -12,6 +12,7 @@ Terraform/OpenTofu provider for the OpenRouter management API.
 
 ### Data sources
 
+- `openrouter_workspace`
 - `openrouter_api_keys`
 - `openrouter_workspaces`
 - `openrouter_guardrails`

@@ -42,6 +42,13 @@ func TestDataSourceConfigureIgnoresNilProviderData(t *testing.T) {
 			},
 		},
 		{
+			name: "workspace",
+			configure: func(resp *datasource.ConfigureResponse) {
+				ds := &workspaceDataSource{}
+				ds.Configure(context.Background(), datasource.ConfigureRequest{}, resp)
+			},
+		},
+		{
 			name: "workspaces",
 			configure: func(resp *datasource.ConfigureResponse) {
 				ds := &workspacesDataSource{}

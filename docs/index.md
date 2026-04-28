@@ -36,6 +36,7 @@ The provider requires an OpenRouter **management** key and validates that requir
 
 ## Supported Data Sources
 
+- `openrouter_workspace`
 - `openrouter_api_keys`
 - `openrouter_workspaces`
 - `openrouter_guardrails`
