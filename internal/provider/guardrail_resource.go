@@ -2,12 +2,13 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/cloudopsworks/terraform-provider-openrouter/internal/client"
@@ -25,6 +26,7 @@ type guardrailResource struct {
 type guardrailResourceModel struct {
 	ID               types.String  `tfsdk:"id"`
 	Name             types.String  `tfsdk:"name"`
+	WorkspaceID      types.String  `tfsdk:"workspace_id"`
 	Description      types.String  `tfsdk:"description"`
 	LimitUSD         types.Float64 `tfsdk:"limit_usd"`
 	ResetInterval    types.String  `tfsdk:"reset_interval"`
@@ -59,10 +61,11 @@ func (r *guardrailResource) Configure(_ context.Context, req resource.ConfigureR
 
 func (r *guardrailResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = resourceschema.Schema{
-		MarkdownDescription: "Manage OpenRouter guardrails. OpenRouter's current API does not expose a workspace field on guardrail CRUD responses, so this v1 resource manages guardrails by guardrail ID and name only.",
+		MarkdownDescription: "Manage OpenRouter guardrails.",
 		Attributes: map[string]resourceschema.Attribute{
 			"id":                resourceschema.StringAttribute{Computed: true},
 			"name":              resourceschema.StringAttribute{Required: true},
+			"workspace_id":      resourceschema.StringAttribute{Optional: true, MarkdownDescription: "Workspace UUID for the guardrail. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"description":       resourceschema.StringAttribute{Optional: true, Computed: true},
 			"limit_usd":         resourceschema.Float64Attribute{Optional: true, Computed: true},
 			"reset_interval":    resourceschema.StringAttribute{Optional: true, Computed: true},
@@ -98,13 +101,14 @@ func (r *guardrailResource) Create(ctx context.Context, req resource.CreateReque
 
 	request := client.GuardrailUpsertRequest{
 		Name:             stringValueOrNil(plan.Name),
+		WorkspaceID:      stringValueOrNil(plan.WorkspaceID),
 		Description:      stringValueOrNil(plan.Description),
 		LimitUSD:         float64ValueOrNil(plan.LimitUSD),
 		ResetInterval:    stringValueOrNil(plan.ResetInterval),
-		AllowedModels:    &allowedModels,
-		AllowedProviders: &allowedProviders,
-		IgnoredModels:    &ignoredModels,
-		IgnoredProviders: &ignoredProviders,
+		AllowedModels:    stringSliceOrNil(allowedModels),
+		AllowedProviders: stringSliceOrNil(allowedProviders),
+		IgnoredModels:    stringSliceOrNil(ignoredModels),
+		IgnoredProviders: stringSliceOrNil(ignoredProviders),
 		EnforceZDR:       boolValueOrNil(plan.EnforceZDR),
 	}
 
@@ -167,10 +171,10 @@ func (r *guardrailResource) Update(ctx context.Context, req resource.UpdateReque
 		Description:      stringValueOrNil(plan.Description),
 		LimitUSD:         float64ValueOrNil(plan.LimitUSD),
 		ResetInterval:    stringValueOrNil(plan.ResetInterval),
-		AllowedModels:    &allowedModels,
-		AllowedProviders: &allowedProviders,
-		IgnoredModels:    &ignoredModels,
-		IgnoredProviders: &ignoredProviders,
+		AllowedModels:    stringSliceOrNil(allowedModels),
+		AllowedProviders: stringSliceOrNil(allowedProviders),
+		IgnoredModels:    stringSliceOrNil(ignoredModels),
+		IgnoredProviders: stringSliceOrNil(ignoredProviders),
 		EnforceZDR:       boolValueOrNil(plan.EnforceZDR),
 	}
 
@@ -197,33 +201,17 @@ func (r *guardrailResource) Delete(ctx context.Context, req resource.DeleteReque
 }
 
 func (r *guardrailResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	if _, name, err := parseCompositeImportID(req.ID); err == nil {
-		guardrails, listErr := r.client.ListGuardrails(ctx)
-		if listErr != nil {
-			resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", listErr.Error())
-			return
-		}
-		matches := make([]client.Guardrail, 0)
-		for _, item := range guardrails {
-			if item.Name == name {
-				matches = append(matches, item)
-			}
-		}
-		if len(matches) == 0 {
-			resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", fmt.Sprintf("no guardrail named %q found", name))
-			return
-		}
-		if len(matches) > 1 {
-			resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", fmt.Sprintf("multiple guardrails named %q found; import by canonical ID instead", name))
-			return
-		}
-		state, diags := flattenGuardrailModel(ctx, matches[0])
-		resp.Diagnostics.Append(diags...)
-		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	workspaceID, name, err := parseCompositeImportID(req.ID)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", err.Error())
 		return
 	}
-
-	guardrail, err := r.client.GetGuardrail(ctx, req.ID)
+	guardrails, listErr := r.client.ListGuardrails(ctx, &workspaceID)
+	if listErr != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", listErr.Error())
+		return
+	}
+	guardrail, err := findGuardrailByCompositeImport(guardrails, workspaceID, name)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to import OpenRouter guardrail", err.Error())
 		return
@@ -245,6 +233,7 @@ func flattenGuardrailModel(ctx context.Context, in client.Guardrail) (guardrailR
 	return guardrailResourceModel{
 		ID:               types.StringValue(in.ID),
 		Name:             types.StringValue(in.Name),
+		WorkspaceID:      stringPtrValue(in.WorkspaceID),
 		Description:      stringPtrValue(in.Description),
 		LimitUSD:         float64PtrValue(in.LimitUSD),
 		ResetInterval:    stringPtrValue(in.ResetInterval),

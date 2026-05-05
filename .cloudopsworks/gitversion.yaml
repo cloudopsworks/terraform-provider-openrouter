@@ -18,8 +18,8 @@ assembly-versioning-scheme: MajorMinorPatch
 assembly-file-versioning-scheme: MajorMinorPatch
 tag-prefix: "[vV]?"
 version-in-branch-pattern: "(?<version>[vV]?\\d+(\\.\\d+)?(\\.\\d+)?).*"
-major-version-bump-message: "\\+semver:\\s?(major)"
-minor-version-bump-message: "\\+semver:\\s?(feature|minor|breaking)"
+major-version-bump-message: "\\+semver:\\s?(major|breaking)"
+minor-version-bump-message: "\\+semver:\\s?(feature|minor)"
 patch-version-bump-message: "\\+semver:\\s?(fix|patch|hotfix)"
 no-bump-message: "\\+semver:\\s?(none|skip)"
 tag-pre-release-weight: 60000

@@ -61,12 +61,18 @@ func (c *Client) GetCurrentKey(ctx context.Context) (*CurrentKey, error) {
 	if err := c.do(ctx, http.MethodGet, "/key", nil, nil, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
 func (c *Client) CreateAPIKey(ctx context.Context, body APIKeyCreateRequest) (*APIKeyCreateResponse, error) {
 	var resp APIKeyCreateResponse
 	if err := c.do(ctx, http.MethodPost, "/keys", nil, body, &resp); err != nil {
+		return nil, err
+	}
+	if err := resp.Validate(); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -77,27 +83,49 @@ func (c *Client) GetAPIKey(ctx context.Context, hash string) (*APIKey, error) {
 	if err := c.do(ctx, http.MethodGet, "/keys/"+url.PathEscape(hash), nil, nil, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
 func (c *Client) ListAPIKeys(ctx context.Context, workspaceID *string, includeDisabled bool) ([]APIKey, error) {
-	query := url.Values{}
-	if workspaceID != nil && *workspaceID != "" {
-		query.Set("workspace_id", *workspaceID)
+	items := make([]APIKey, 0)
+	offset := 0
+	for {
+		query := url.Values{}
+		if workspaceID != nil && *workspaceID != "" {
+			query.Set("workspace_id", *workspaceID)
+		}
+		if includeDisabled {
+			query.Set("include_disabled", "true")
+		}
+		query.Set("offset", fmt.Sprintf("%d", offset))
+		query.Set("limit", "100")
+		var resp listResponse[APIKey]
+		if err := c.do(ctx, http.MethodGet, "/keys", query, nil, &resp); err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Data {
+			if err := item.Validate(); err != nil {
+				return nil, err
+			}
+		}
+		items = append(items, resp.Data...)
+		if len(resp.Data) == 0 || len(resp.Data) < 100 || (resp.TotalCount > 0 && len(items) >= resp.TotalCount) {
+			break
+		}
+		offset += len(resp.Data)
 	}
-	if includeDisabled {
-		query.Set("include_disabled", "true")
-	}
-	var resp listResponse[APIKey]
-	if err := c.do(ctx, http.MethodGet, "/keys", query, nil, &resp); err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return items, nil
 }
 
 func (c *Client) UpdateAPIKey(ctx context.Context, hash string, body APIKeyUpdateRequest) (*APIKey, error) {
 	var resp singleResponse[APIKey]
 	if err := c.do(ctx, http.MethodPatch, "/keys/"+url.PathEscape(hash), nil, body, &resp); err != nil {
+		return nil, err
+	}
+	if err := resp.Data.Validate(); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -112,6 +140,9 @@ func (c *Client) CreateWorkspace(ctx context.Context, body WorkspaceUpsertReques
 	if err := c.do(ctx, http.MethodPost, "/workspaces", nil, body, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
@@ -120,20 +151,43 @@ func (c *Client) GetWorkspace(ctx context.Context, idOrSlug string) (*Workspace,
 	if err := c.do(ctx, http.MethodGet, "/workspaces/"+url.PathEscape(idOrSlug), nil, nil, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
 func (c *Client) ListWorkspaces(ctx context.Context) ([]Workspace, error) {
-	var resp listResponse[Workspace]
-	if err := c.do(ctx, http.MethodGet, "/workspaces", nil, nil, &resp); err != nil {
-		return nil, err
+	items := make([]Workspace, 0)
+	offset := 0
+	for {
+		query := url.Values{}
+		query.Set("offset", fmt.Sprintf("%d", offset))
+		query.Set("limit", "100")
+		var resp listResponse[Workspace]
+		if err := c.do(ctx, http.MethodGet, "/workspaces", query, nil, &resp); err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Data {
+			if err := item.Validate(); err != nil {
+				return nil, err
+			}
+		}
+		items = append(items, resp.Data...)
+		if len(resp.Data) == 0 || len(resp.Data) < 100 || (resp.TotalCount > 0 && len(items) >= resp.TotalCount) {
+			break
+		}
+		offset += len(resp.Data)
 	}
-	return resp.Data, nil
+	return items, nil
 }
 
 func (c *Client) UpdateWorkspace(ctx context.Context, id string, body WorkspaceUpsertRequest) (*Workspace, error) {
 	var resp singleResponse[Workspace]
 	if err := c.do(ctx, http.MethodPatch, "/workspaces/"+url.PathEscape(id), nil, body, &resp); err != nil {
+		return nil, err
+	}
+	if err := resp.Data.Validate(); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -148,6 +202,9 @@ func (c *Client) CreateGuardrail(ctx context.Context, body GuardrailUpsertReques
 	if err := c.do(ctx, http.MethodPost, "/guardrails", nil, body, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
@@ -156,19 +213,30 @@ func (c *Client) GetGuardrail(ctx context.Context, id string) (*Guardrail, error
 	if err := c.do(ctx, http.MethodGet, "/guardrails/"+url.PathEscape(id), nil, nil, &resp); err != nil {
 		return nil, err
 	}
+	if err := resp.Data.Validate(); err != nil {
+		return nil, err
+	}
 	return &resp.Data, nil
 }
 
-func (c *Client) ListGuardrails(ctx context.Context) ([]Guardrail, error) {
+func (c *Client) ListGuardrails(ctx context.Context, workspaceID *string) ([]Guardrail, error) {
 	items := make([]Guardrail, 0)
 	offset := 0
 	for {
 		query := url.Values{}
 		query.Set("offset", fmt.Sprintf("%d", offset))
 		query.Set("limit", "100")
+		if workspaceID != nil && *workspaceID != "" {
+			query.Set("workspace_id", *workspaceID)
+		}
 		var resp listResponse[Guardrail]
 		if err := c.do(ctx, http.MethodGet, "/guardrails", query, nil, &resp); err != nil {
 			return nil, err
+		}
+		for _, item := range resp.Data {
+			if err := item.Validate(); err != nil {
+				return nil, err
+			}
 		}
 		items = append(items, resp.Data...)
 		if len(resp.Data) == 0 || len(resp.Data) < 100 || (resp.TotalCount > 0 && len(items) >= resp.TotalCount) {
@@ -182,6 +250,9 @@ func (c *Client) ListGuardrails(ctx context.Context) ([]Guardrail, error) {
 func (c *Client) UpdateGuardrail(ctx context.Context, id string, body GuardrailUpsertRequest) (*Guardrail, error) {
 	var resp singleResponse[Guardrail]
 	if err := c.do(ctx, http.MethodPatch, "/guardrails/"+url.PathEscape(id), nil, body, &resp); err != nil {
+		return nil, err
+	}
+	if err := resp.Data.Validate(); err != nil {
 		return nil, err
 	}
 	return &resp.Data, nil
@@ -202,6 +273,11 @@ func (c *Client) ListOrganizationMembers(ctx context.Context) ([]OrganizationMem
 		if err := c.do(ctx, http.MethodGet, "/organization/members", query, nil, &resp); err != nil {
 			return nil, err
 		}
+		for _, item := range resp.Data {
+			if err := item.Validate(); err != nil {
+				return nil, err
+			}
+		}
 		items = append(items, resp.Data...)
 		if len(resp.Data) == 0 || len(resp.Data) < 100 || (resp.TotalCount > 0 && len(items) >= resp.TotalCount) {
 			break
@@ -215,6 +291,11 @@ func (c *Client) ListProviders(ctx context.Context) ([]ProviderInfo, error) {
 	var resp listResponse[ProviderInfo]
 	if err := c.do(ctx, http.MethodGet, "/providers", nil, nil, &resp); err != nil {
 		return nil, err
+	}
+	for _, item := range resp.Data {
+		if err := item.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	return resp.Data, nil
 }

@@ -49,6 +49,7 @@ func (d *workspacesDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 			"default_text_model":                  datasourceschema.StringAttribute{Computed: true},
 			"default_image_model":                 datasourceschema.StringAttribute{Computed: true},
 			"default_provider_sort":               datasourceschema.StringAttribute{Computed: true},
+			"io_logging_api_key_ids":              datasourceschema.SetAttribute{Computed: true, ElementType: types.Int64Type},
 			"io_logging_sampling_rate":            datasourceschema.Float64Attribute{Computed: true},
 			"is_data_discount_logging_enabled":    datasourceschema.BoolAttribute{Computed: true},
 			"is_observability_broadcast_enabled":  datasourceschema.BoolAttribute{Computed: true},
@@ -74,6 +75,7 @@ func (d *workspacesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		"default_text_model":                  types.StringType,
 		"default_image_model":                 types.StringType,
 		"default_provider_sort":               types.StringType,
+		"io_logging_api_key_ids":              types.SetType{ElemType: types.Int64Type},
 		"io_logging_sampling_rate":            types.Float64Type,
 		"is_data_discount_logging_enabled":    types.BoolType,
 		"is_observability_broadcast_enabled":  types.BoolType,
@@ -84,6 +86,8 @@ func (d *workspacesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 	objects := make([]attr.Value, 0, len(items))
 	for _, item := range items {
+		ioLoggingAPIKeyIDs, diags := setInt64ValueOrNull(ctx, item.IOLoggingAPIKeyIDs)
+		resp.Diagnostics.Append(diags...)
 		object, diags := types.ObjectValue(itemType, map[string]attr.Value{
 			"id":                                  types.StringValue(item.ID),
 			"name":                                types.StringValue(item.Name),
@@ -92,6 +96,7 @@ func (d *workspacesDataSource) Read(ctx context.Context, req datasource.ReadRequ
 			"default_text_model":                  stringPtrValue(item.DefaultTextModel),
 			"default_image_model":                 stringPtrValue(item.DefaultImageModel),
 			"default_provider_sort":               stringPtrValue(item.DefaultProviderSort),
+			"io_logging_api_key_ids":              ioLoggingAPIKeyIDs,
 			"io_logging_sampling_rate":            float64PtrValue(item.IOLoggingSamplingRate),
 			"is_data_discount_logging_enabled":    types.BoolValue(item.IsDataDiscountLoggingEnabled),
 			"is_observability_broadcast_enabled":  types.BoolValue(item.IsObservabilityBroadcastEnabled),

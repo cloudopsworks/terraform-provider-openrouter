@@ -7,6 +7,7 @@ Manages an OpenRouter guardrail.
 ```hcl
 resource "openrouter_guardrail" "prod" {
   name              = "production"
+  workspace_id      = openrouter_workspace.team.id
   description       = "Production restrictions"
   limit_usd         = 250
   reset_interval    = "monthly"
@@ -18,6 +19,7 @@ resource "openrouter_guardrail" "prod" {
 ## Argument Reference
 
 - `name` - (Required) Guardrail name.
+- `workspace_id` - (Optional, Computed, Forces replacement) Workspace UUID for the guardrail. Defaults to the default workspace when omitted by the API.
 - `description` - (Optional) Guardrail description.
 - `limit_usd` - (Optional) USD limit.
 - `reset_interval` - (Optional) Reset interval.
@@ -38,7 +40,7 @@ In addition to the arguments above, the resource exports:
 ## Import
 
 ```sh
-terraform import openrouter_guardrail.prod <guardrail_id>
+terraform import openrouter_guardrail.prod <workspace_id>_<name>
 ```
 
-You can also import by name when it is unique in the organization.
+The provider requires the composite import format `<workspace_id>_<name>`.

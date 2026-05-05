@@ -15,6 +15,9 @@ test-results/
 *.so
 *.dylib
 VERSION
+dist/
+.gocache*/
+.gomodcache*/
 
 # Test binary, built with `go test -c`
 *.test
@@ -51,14 +54,11 @@ go.work.sum
 .tronador*.mk
 .tronador
 tronador/
-dist/
-.gocache*/
-.gomodcache*/
 
-# AI excludes
+### AI Agents ###
 .claude/
-.ai/
-.omc/
-.omx/
 .gstack/
 .opencode/
+.omc/
+.omx/
+.ai/

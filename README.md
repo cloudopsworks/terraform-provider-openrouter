@@ -21,7 +21,7 @@ Terraform/OpenTofu provider for the OpenRouter management API.
 
 ## Requirements
 
-- Go `1.24+`
+- Go `1.25+`
 - Terraform `>= 1.7`
 - OpenTofu `>= 1.7`
 - OpenRouter management API key
@@ -83,9 +83,7 @@ See:
 ## Known limitations in v1
 
 - OpenRouter returns the actual API key secret only on create. The provider exposes it as `key` and marks it sensitive, but it can still exist in state.
-- `openrouter_workspace` intentionally does not model `io_logging_api_key_ids` because the documented write shape is not exposed as a stable read field.
 - `openrouter_organization` is implemented from the documented organization-members endpoint.
-- Guardrails are managed by guardrail ID/name because current public guardrail CRUD responses do not expose a stable workspace field.
 
 ## Development
 

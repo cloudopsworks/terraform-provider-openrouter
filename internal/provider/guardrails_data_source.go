@@ -16,8 +16,9 @@ var _ datasource.DataSource = &guardrailsDataSource{}
 type guardrailsDataSource struct{ client *client.Client }
 
 type guardrailsDataSourceModel struct {
-	TotalCount types.Int64 `tfsdk:"total_count"`
-	Items      types.List  `tfsdk:"items"`
+	WorkspaceID types.String `tfsdk:"workspace_id"`
+	TotalCount  types.Int64  `tfsdk:"total_count"`
+	Items       types.List   `tfsdk:"items"`
 }
 
 func NewGuardrailsDataSource() datasource.DataSource { return &guardrailsDataSource{} }
@@ -40,10 +41,12 @@ func (d *guardrailsDataSource) Configure(_ context.Context, req datasource.Confi
 
 func (d *guardrailsDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = datasourceschema.Schema{Attributes: map[string]datasourceschema.Attribute{
-		"total_count": datasourceschema.Int64Attribute{Computed: true},
+		"workspace_id": datasourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Optional workspace UUID filter. When omitted, the API returns guardrails from the default workspace."},
+		"total_count":  datasourceschema.Int64Attribute{Computed: true},
 		"items": datasourceschema.ListNestedAttribute{Computed: true, NestedObject: datasourceschema.NestedAttributeObject{Attributes: map[string]datasourceschema.Attribute{
 			"id":                datasourceschema.StringAttribute{Computed: true},
 			"name":              datasourceschema.StringAttribute{Computed: true},
+			"workspace_id":      datasourceschema.StringAttribute{Computed: true},
 			"description":       datasourceschema.StringAttribute{Computed: true},
 			"limit_usd":         datasourceschema.Float64Attribute{Computed: true},
 			"reset_interval":    datasourceschema.StringAttribute{Computed: true},
@@ -59,7 +62,12 @@ func (d *guardrailsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 }
 
 func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	items, err := d.client.ListGuardrails(ctx)
+	var config guardrailsDataSourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	items, err := d.client.ListGuardrails(ctx, stringValueOrNil(config.WorkspaceID))
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to list OpenRouter guardrails", err.Error())
 		return
@@ -67,6 +75,7 @@ func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	itemType := map[string]attr.Type{
 		"id":                types.StringType,
 		"name":              types.StringType,
+		"workspace_id":      types.StringType,
 		"description":       types.StringType,
 		"limit_usd":         types.Float64Type,
 		"reset_interval":    types.StringType,
@@ -91,6 +100,7 @@ func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		object, diags := types.ObjectValue(itemType, map[string]attr.Value{
 			"id":                types.StringValue(item.ID),
 			"name":              types.StringValue(item.Name),
+			"workspace_id":      stringPtrValue(item.WorkspaceID),
 			"description":       stringPtrValue(item.Description),
 			"limit_usd":         float64PtrValue(item.LimitUSD),
 			"reset_interval":    stringPtrValue(item.ResetInterval),
@@ -107,6 +117,6 @@ func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	}
 	listValue, diags := types.ListValue(types.ObjectType{AttrTypes: itemType}, objects)
 	resp.Diagnostics.Append(diags...)
-	state := guardrailsDataSourceModel{TotalCount: types.Int64Value(int64(len(items))), Items: listValue}
+	state := guardrailsDataSourceModel{WorkspaceID: config.WorkspaceID, TotalCount: types.Int64Value(int64(len(items))), Items: listValue}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

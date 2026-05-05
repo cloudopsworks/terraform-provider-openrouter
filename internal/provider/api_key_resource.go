@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -74,14 +73,14 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 		Attributes: map[string]resourceschema.Attribute{
 			"id":                    resourceschema.StringAttribute{Computed: true, MarkdownDescription: "Stable API key hash."},
 			"name":                  resourceschema.StringAttribute{Required: true, MarkdownDescription: "Name of the API key."},
-			"workspace_id":          resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Optional workspace UUID to send during API key creation. When omitted, the provider records whatever workspace the API returns.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"workspace_id":          resourceschema.StringAttribute{Optional: true, MarkdownDescription: "Optional workspace UUID to send during API key creation. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"limit":                 resourceschema.Float64Attribute{Optional: true, Computed: true, MarkdownDescription: "Spending limit in USD."},
 			"limit_remaining":       resourceschema.Float64Attribute{Computed: true, MarkdownDescription: "Remaining limit in USD."},
 			"limit_reset":           resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Reset interval: daily, weekly, monthly, or null for no reset."},
 			"include_byok_in_limit": resourceschema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether BYOK usage counts toward the limit."},
 			"disabled":              resourceschema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the key is disabled."},
-			"expires_at":            resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "UTC ISO 8601 expiration timestamp. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
-			"creator_user_id":       resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Optional organization member creator identifier. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"expires_at":            resourceschema.StringAttribute{Optional: true, MarkdownDescription: "UTC ISO 8601 expiration timestamp. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"creator_user_id":       resourceschema.StringAttribute{Optional: true, MarkdownDescription: "Optional organization member creator identifier. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"label":                 resourceschema.StringAttribute{Computed: true, MarkdownDescription: "Server-generated label."},
 			"key":                   resourceschema.StringAttribute{Computed: true, Sensitive: true, MarkdownDescription: "Actual API key string, only returned on create and stored in state when available."},
 			"usage":                 resourceschema.Float64Attribute{Computed: true},
@@ -171,7 +170,13 @@ func (r *apiKeyResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	newState := flattenAPIKeyModel(*updated)
+	refreshed, err := r.client.GetAPIKey(ctx, updated.Hash)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to refresh OpenRouter API key after update", err.Error())
+		return
+	}
+
+	newState := flattenAPIKeyModel(*refreshed)
 	newState.Key = state.Key
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
@@ -188,33 +193,17 @@ func (r *apiKeyResource) Delete(ctx context.Context, req resource.DeleteRequest,
 }
 
 func (r *apiKeyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	if workspaceID, name, err := parseCompositeImportID(req.ID); err == nil {
-		keys, listErr := r.client.ListAPIKeys(ctx, &workspaceID, true)
-		if listErr != nil {
-			resp.Diagnostics.AddError("Unable to import OpenRouter API key", listErr.Error())
-			return
-		}
-		matches := make([]client.APIKey, 0)
-		for _, item := range keys {
-			if item.Name == name {
-				matches = append(matches, item)
-			}
-		}
-		if len(matches) == 0 {
-			resp.Diagnostics.AddError("Unable to import OpenRouter API key", fmt.Sprintf("no API key named %q found in workspace %q", name, workspaceID))
-			return
-		}
-		if len(matches) > 1 {
-			resp.Diagnostics.AddError("Unable to import OpenRouter API key", fmt.Sprintf("multiple API keys named %q found in workspace %q", name, workspaceID))
-			return
-		}
-		state := flattenAPIKeyModel(matches[0])
-		state.Key = types.StringNull()
-		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	workspaceID, name, err := parseCompositeImportID(req.ID)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter API key", err.Error())
 		return
 	}
-
-	key, err := r.client.GetAPIKey(ctx, req.ID)
+	keys, listErr := r.client.ListAPIKeys(ctx, &workspaceID, true)
+	if listErr != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter API key", listErr.Error())
+		return
+	}
+	key, err := findAPIKeyByCompositeImport(keys, workspaceID, name)
 	if err != nil {
 		resp.Diagnostics.AddError("Unable to import OpenRouter API key", err.Error())
 		return
