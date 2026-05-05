@@ -67,6 +67,8 @@ jobs:
       has_qualifier: ${{ steps.config.outputs.has_qualifier }}
       observability_enabled: ${{ steps.config.outputs.observability_enabled }}
       observability_agent: ${{ steps.config.outputs.observability_agent }}
+      golang_version: ${{ steps.build.outputs.golang_version }}
+      golang_goreleaser: ${{ steps.build.outputs.golang_goreleaser }}
     steps:
       - name: Checkout w/Blueprint
         uses: cloudopsworks/blueprints/cd/checkout@v5.10
@@ -176,6 +178,16 @@ jobs:
           files_globs: |
             *.zip
           token: ${{ secrets.BOT_TOKEN }}
+
+      - name: GoReleaser Pipeline
+        uses: ./bp/cd/go/release
+        if: needs.code-build.outputs.golang_goreleaser == 'true'
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
+          semver: ${{ needs.code-build.outputs.semver }}
+          golang_version: ${{ needs.code-build.outputs.golang_version }}
 
   scan:
     name: 'Code Scan SAST/SCA/DAST'

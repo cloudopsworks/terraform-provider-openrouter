@@ -51,14 +51,11 @@ go.work.sum
 .tronador*.mk
 .tronador
 tronador/
-dist/
-.gocache*/
-.gomodcache*/
 
-# AI excludes
+### AI Agents ###
 .claude/
-.ai/
-.omc/
-.omx/
 .gstack/
 .opencode/
+.omc/
+.omx/
+.ai/
