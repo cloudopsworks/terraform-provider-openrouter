@@ -1,7 +1,7 @@
-organization_name: "ORG_NAME"
-organization_unit: "ORG_UNIT"
-environment_name: "ENV_NAME"
-repository_owner: "REPO_OWNER" # Required
+organization_name: "CloudOpsWorks"
+organization_unit: "Providers"
+environment_name: "terraform-provider-openrouter"
+repository_owner: "cloudopsworks"
 #
 ## Default Go version is 1.25, uncomment to build with different version,
 ## Dist is the OS distribution, arch is the architecture
