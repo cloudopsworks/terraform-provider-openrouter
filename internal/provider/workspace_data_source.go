@@ -23,6 +23,7 @@ type workspaceDataSourceModel struct {
 	DefaultTextModel                types.String  `tfsdk:"default_text_model"`
 	DefaultImageModel               types.String  `tfsdk:"default_image_model"`
 	DefaultProviderSort             types.String  `tfsdk:"default_provider_sort"`
+	IOLoggingAPIKeyIDs              types.Set     `tfsdk:"io_logging_api_key_ids"`
 	IOLoggingSamplingRate           types.Float64 `tfsdk:"io_logging_sampling_rate"`
 	IsDataDiscountLoggingEnabled    types.Bool    `tfsdk:"is_data_discount_logging_enabled"`
 	IsObservabilityBroadcastEnabled types.Bool    `tfsdk:"is_observability_broadcast_enabled"`
@@ -61,6 +62,7 @@ func (d *workspaceDataSource) Schema(_ context.Context, _ datasource.SchemaReque
 			"default_text_model":                  datasourceschema.StringAttribute{Computed: true},
 			"default_image_model":                 datasourceschema.StringAttribute{Computed: true},
 			"default_provider_sort":               datasourceschema.StringAttribute{Computed: true},
+			"io_logging_api_key_ids":              datasourceschema.SetAttribute{Computed: true, ElementType: types.Int64Type},
 			"io_logging_sampling_rate":            datasourceschema.Float64Attribute{Computed: true},
 			"is_data_discount_logging_enabled":    datasourceschema.BoolAttribute{Computed: true},
 			"is_observability_broadcast_enabled":  datasourceschema.BoolAttribute{Computed: true},
@@ -162,6 +164,10 @@ func findWorkspaceByName(items []client.Workspace, name string) (*client.Workspa
 }
 
 func flattenWorkspaceDataSourceModel(in client.Workspace) workspaceDataSourceModel {
+	ioLoggingAPIKeyIDs, diags := setInt64ValueOrNull(context.Background(), in.IOLoggingAPIKeyIDs)
+	if diags.HasError() {
+		ioLoggingAPIKeyIDs = types.SetNull(types.Int64Type)
+	}
 	return workspaceDataSourceModel{
 		ID:                              types.StringValue(in.ID),
 		Name:                            types.StringValue(in.Name),
@@ -170,6 +176,7 @@ func flattenWorkspaceDataSourceModel(in client.Workspace) workspaceDataSourceMod
 		DefaultTextModel:                stringPtrValue(in.DefaultTextModel),
 		DefaultImageModel:               stringPtrValue(in.DefaultImageModel),
 		DefaultProviderSort:             stringPtrValue(in.DefaultProviderSort),
+		IOLoggingAPIKeyIDs:              ioLoggingAPIKeyIDs,
 		IOLoggingSamplingRate:           float64PtrValue(in.IOLoggingSamplingRate),
 		IsDataDiscountLoggingEnabled:    types.BoolValue(in.IsDataDiscountLoggingEnabled),
 		IsObservabilityBroadcastEnabled: types.BoolValue(in.IsObservabilityBroadcastEnabled),

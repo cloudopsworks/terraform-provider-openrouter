@@ -44,4 +44,4 @@ In addition to the arguments above, the resource exports:
 terraform import openrouter_api_key.service <workspace_id>_<name>
 ```
 
-You can also import by canonical API key hash, which is the preferred import path when `workspace_id` was omitted from configuration.
+The provider requires the composite import format `<workspace_id>_<name>`.

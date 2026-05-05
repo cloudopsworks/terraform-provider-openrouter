@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,6 +28,7 @@ type workspaceResourceModel struct {
 	DefaultTextModel                types.String  `tfsdk:"default_text_model"`
 	DefaultImageModel               types.String  `tfsdk:"default_image_model"`
 	DefaultProviderSort             types.String  `tfsdk:"default_provider_sort"`
+	IOLoggingAPIKeyIDs              types.Set     `tfsdk:"io_logging_api_key_ids"`
 	IOLoggingSamplingRate           types.Float64 `tfsdk:"io_logging_sampling_rate"`
 	IsDataDiscountLoggingEnabled    types.Bool    `tfsdk:"is_data_discount_logging_enabled"`
 	IsObservabilityBroadcastEnabled types.Bool    `tfsdk:"is_observability_broadcast_enabled"`
@@ -69,7 +69,8 @@ func (r *workspaceResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 			"default_text_model":                  resourceschema.StringAttribute{Optional: true, Computed: true},
 			"default_image_model":                 resourceschema.StringAttribute{Optional: true, Computed: true},
 			"default_provider_sort":               resourceschema.StringAttribute{Optional: true, Computed: true},
-			"io_logging_sampling_rate":            resourceschema.Float64Attribute{Optional: true, Computed: true, MarkdownDescription: "I/O logging sampling rate. `io_logging_api_key_ids` is intentionally not modeled in v1 because the docs do not show it round-tripping in read responses."},
+			"io_logging_api_key_ids":              resourceschema.SetAttribute{Optional: true, Computed: true, ElementType: types.Int64Type, MarkdownDescription: "Optional API key IDs used to filter I/O logging."},
+			"io_logging_sampling_rate":            resourceschema.Float64Attribute{Optional: true, Computed: true},
 			"is_data_discount_logging_enabled":    resourceschema.BoolAttribute{Optional: true, Computed: true},
 			"is_observability_broadcast_enabled":  resourceschema.BoolAttribute{Optional: true, Computed: true},
 			"is_observability_io_logging_enabled": resourceschema.BoolAttribute{Optional: true, Computed: true},
@@ -94,11 +95,18 @@ func (r *workspaceResource) Create(ctx context.Context, req resource.CreateReque
 		DefaultTextModel:                stringValueOrNil(plan.DefaultTextModel),
 		DefaultImageModel:               stringValueOrNil(plan.DefaultImageModel),
 		DefaultProviderSort:             stringValueOrNil(plan.DefaultProviderSort),
+		IOLoggingAPIKeyIDs:              nil,
 		IOLoggingSamplingRate:           float64ValueOrNil(plan.IOLoggingSamplingRate),
 		IsDataDiscountLoggingEnabled:    boolValueOrNil(plan.IsDataDiscountLoggingEnabled),
 		IsObservabilityBroadcastEnabled: boolValueOrNil(plan.IsObservabilityBroadcastEnabled),
 		IsObservabilityIOLoggingEnabled: boolValueOrNil(plan.IsObservabilityIOLoggingEnabled),
 	}
+	ioLoggingAPIKeyIDs, diags := setToInt64Slice(ctx, plan.IOLoggingAPIKeyIDs)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	request.IOLoggingAPIKeyIDs = int64SliceOrNil(ioLoggingAPIKeyIDs)
 
 	created, err := r.client.CreateWorkspace(ctx, request)
 	if err != nil {
@@ -146,11 +154,18 @@ func (r *workspaceResource) Update(ctx context.Context, req resource.UpdateReque
 		DefaultTextModel:                stringValueOrNil(plan.DefaultTextModel),
 		DefaultImageModel:               stringValueOrNil(plan.DefaultImageModel),
 		DefaultProviderSort:             stringValueOrNil(plan.DefaultProviderSort),
+		IOLoggingAPIKeyIDs:              nil,
 		IOLoggingSamplingRate:           float64ValueOrNil(plan.IOLoggingSamplingRate),
 		IsDataDiscountLoggingEnabled:    boolValueOrNil(plan.IsDataDiscountLoggingEnabled),
 		IsObservabilityBroadcastEnabled: boolValueOrNil(plan.IsObservabilityBroadcastEnabled),
 		IsObservabilityIOLoggingEnabled: boolValueOrNil(plan.IsObservabilityIOLoggingEnabled),
 	}
+	ioLoggingAPIKeyIDs, diags := setToInt64Slice(ctx, plan.IOLoggingAPIKeyIDs)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	request.IOLoggingAPIKeyIDs = int64SliceOrNil(ioLoggingAPIKeyIDs)
 
 	updated, err := r.client.UpdateWorkspace(ctx, state.ID.ValueString(), request)
 	if err != nil {
@@ -174,25 +189,17 @@ func (r *workspaceResource) Delete(ctx context.Context, req resource.DeleteReque
 }
 
 func (r *workspaceResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	importID := req.ID
-	if workspaceID, slugOrName, err := parseCompositeImportID(req.ID); err == nil {
-		importID = workspaceID
-		workspace, getErr := r.client.GetWorkspace(ctx, workspaceID)
-		if getErr != nil {
-			resp.Diagnostics.AddError("Unable to import OpenRouter workspace", getErr.Error())
-			return
-		}
-		if workspace.Slug != slugOrName && workspace.Name != slugOrName {
-			resp.Diagnostics.AddError("Unable to import OpenRouter workspace", fmt.Sprintf("workspace %q did not match name/slug %q", workspaceID, slugOrName))
-			return
-		}
-		state := flattenWorkspaceModel(*workspace)
-		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	workspaceID, name, err := parseCompositeImportID(req.ID)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter workspace", err.Error())
 		return
 	}
-
-	workspace, err := r.client.GetWorkspace(ctx, importID)
+	workspace, err := r.client.GetWorkspace(ctx, workspaceID)
 	if err != nil {
+		resp.Diagnostics.AddError("Unable to import OpenRouter workspace", err.Error())
+		return
+	}
+	if err := findWorkspaceByCompositeImport(workspace, workspaceID, name); err != nil {
 		resp.Diagnostics.AddError("Unable to import OpenRouter workspace", err.Error())
 		return
 	}
@@ -201,6 +208,10 @@ func (r *workspaceResource) ImportState(ctx context.Context, req resource.Import
 }
 
 func flattenWorkspaceModel(in client.Workspace) workspaceResourceModel {
+	ioLoggingAPIKeyIDs, diags := setInt64ValueOrNull(context.Background(), in.IOLoggingAPIKeyIDs)
+	if diags.HasError() {
+		ioLoggingAPIKeyIDs = types.SetNull(types.Int64Type)
+	}
 	return workspaceResourceModel{
 		ID:                              types.StringValue(in.ID),
 		Name:                            types.StringValue(in.Name),
@@ -209,6 +220,7 @@ func flattenWorkspaceModel(in client.Workspace) workspaceResourceModel {
 		DefaultTextModel:                stringPtrValue(in.DefaultTextModel),
 		DefaultImageModel:               stringPtrValue(in.DefaultImageModel),
 		DefaultProviderSort:             stringPtrValue(in.DefaultProviderSort),
+		IOLoggingAPIKeyIDs:              ioLoggingAPIKeyIDs,
 		IOLoggingSamplingRate:           float64PtrValue(in.IOLoggingSamplingRate),
 		IsDataDiscountLoggingEnabled:    types.BoolValue(in.IsDataDiscountLoggingEnabled),
 		IsObservabilityBroadcastEnabled: types.BoolValue(in.IsObservabilityBroadcastEnabled),

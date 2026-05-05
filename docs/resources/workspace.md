@@ -24,12 +24,11 @@ resource "openrouter_workspace" "team" {
 - `default_text_model` - (Optional) Default text model.
 - `default_image_model` - (Optional) Default image model.
 - `default_provider_sort` - (Optional) Default provider sort strategy.
+- `io_logging_api_key_ids` - (Optional) API key IDs used to filter I/O logging.
 - `io_logging_sampling_rate` - (Optional) I/O logging sampling rate.
 - `is_data_discount_logging_enabled` - (Optional) Enable data discount logging.
 - `is_observability_broadcast_enabled` - (Optional) Enable observability broadcast.
 - `is_observability_io_logging_enabled` - (Optional) Enable observability I/O logging.
-
--> `io_logging_api_key_ids` is intentionally not modeled because current documented responses do not expose a stable round-trippable read field for it.
 
 ## Attribute Reference
 
@@ -43,7 +42,7 @@ In addition to the arguments above, the resource exports:
 ## Import
 
 ```sh
-terraform import openrouter_workspace.team <workspace_id>_<slug>
+terraform import openrouter_workspace.team <workspace_id>_<name>
 ```
 
-You can also import by canonical workspace ID or slug.
+The provider requires the composite import format `<workspace_id>_<name>`.
