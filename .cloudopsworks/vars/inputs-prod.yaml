@@ -1,0 +1,29 @@
+environment: "prod"
+# This file contains the environment variables for the Kubernetes deployment
+#runner_set: "RUNNER-ENV" # Optional: when using self-hosted runners
+#
+# The following are for cloud specific configurations
+# These will be used to filter the secrets from the secret manager
+# and created as secrets in the Kubernetes cluster, then inyected as environment variables
+# For Azure:
+#azure:
+#  resource_group: RESOURCE_GROUP # Optional: set this if the build and deploy resource groups are the same
+#  build_resource_group: RESOURCE_GROUP # Optional: set this if the build and deploy resource groups are different
+#  deploy_resource_group: RESOURCE_GROUP # Optional: set this if the build and deploy resource groups are different
+#  keyvayult_name: KEYVAULT_NAME
+#
+# For AWS
+#aws:
+#  region: AWS_REGION
+#  sts_role_arn: "BUILD_AWS_STS_ROLE_ARN" # Optional: set this if the build and deploy roles are same
+#  build_sts_role_arn: "BUILD_AWS_STS_ROLE_ARN" # Optional: set this if the build and deploy roles are different
+#  deploy_sts_role_arn: "DEPLOY AWS_STS_ROLE_ARN" # Optional: set this if the build and deploy roles are different
+#
+# For GCP
+#gcp:
+#  region: "GCP_REGION"
+#  project_id: "GCP_PROJECT"
+#  impersonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is same for build and deploy
+#  build_impresonate_sa: "GCP project Service Account e-mail" # Optional: when existing role is different for build and deploy
+#  secrets_path_filter: /secrets
+#
