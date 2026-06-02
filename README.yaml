@@ -130,23 +130,29 @@ usage: |-
   ```hcl
   # Scope a workspace, attach a guardrail, then issue a spend-capped key.
   resource "openrouter_workspace" "search_team" {
-    name = "search-team"
+    name = "Search Team"
+    slug = "search-team"
   }
 
-  resource "openrouter_guardrail" "no_pii" {
-    name = "no-pii"
-    # ...guardrail configuration...
+  resource "openrouter_guardrail" "search_team" {
+    name              = "search-team"
+    workspace_id      = openrouter_workspace.search_team.id
+    limit_usd         = 200 # monthly USD cap
+    reset_interval    = "monthly"
+    allowed_providers = ["openai", "anthropic"]
+    enforce_zdr       = true
   }
 
-  resource "openrouter_api_key" "search_team_prod" {
-    name  = "search-team-prod"
-    limit = 200 # USD spend cap
-    # scope to the workspace / guardrail above
+  resource "openrouter_api_key" "search_team" {
+    name         = "search-team-prod"
+    workspace_id = openrouter_workspace.search_team.id
+    limit        = 200 # USD spend cap
+    limit_reset  = "monthly"
   }
   ```
 
-  > Align argument names with the per-resource pages under `docs/` — the snippet
-  > above shows the governance pattern, not a verified schema.
+  See [`examples/governance/`](examples/governance/) for a multi-team version that
+  governs every team from a single `for_each`.
 
   ## Development
 
