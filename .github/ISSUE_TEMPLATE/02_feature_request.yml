@@ -1,0 +1,62 @@
+name: Feature Request
+description: Propose a new capability or improvement to the service.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. A well-described proposal makes it much easier to evaluate and prioritize.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature area
+      description: Which part of the service would this affect?
+      options:
+        - API — new or changed endpoint
+        - Business logic / data processing
+        - Configuration / runtime behavior
+        - Observability (logs, metrics, tracing, alerting)
+        - Security / authentication / authorization
+        - Performance / scalability
+        - Developer experience / tooling
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: |
+        What gap or pain point does this address? Concrete examples help.
+        Example: "There is no way to filter results by date range — callers have to download everything and filter client-side."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or API change you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried workarounds? Why are they insufficient?
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links, prior art, related issues, or anything else that supports the proposal.
+    validations:
+      required: false

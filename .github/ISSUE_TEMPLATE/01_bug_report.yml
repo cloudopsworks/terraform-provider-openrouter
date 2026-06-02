@@ -1,0 +1,97 @@
+name: Bug Report
+description: Report unexpected behavior in the application.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Please be as specific as possible — it speeds up the fix significantly.
+
+  - type: input
+    id: service_version
+    attributes:
+      label: Service version
+      description: >
+        The version of the running service. Found in the `VERSION` file, the container image tag,
+        or the `version` field returned by the `/health` endpoint.
+      placeholder: "e.g. v1.4.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did you observe the bug?
+      options:
+        - Local / development machine
+        - dev
+        - uat
+        - prod
+        - demo
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which part of the service is affected?
+      options:
+        - API / request handling
+        - Business logic / data processing
+        - Configuration / startup
+        - Health / readiness check
+        - Observability (logs, metrics, tracing)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps_to_reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps that reliably trigger the bug.
+      placeholder: |
+        1. Send POST /api/v1/resource with body {...}
+        2. Observe response status 500
+        3. Check logs for error message
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include relevant log lines or error messages. Do **not** paste secrets or credentials.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: >
+        Anything else that helps narrow down the problem — request/response examples,
+        relevant configuration flags, a workflow run URL, or a link to a related issue.
+    validations:
+      required: false
