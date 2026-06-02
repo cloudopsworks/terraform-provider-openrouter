@@ -1,0 +1,115 @@
+name: Infrastructure / Deployment Issue
+description: Report a problem with CI/CD pipelines, deployments, or environment configuration.
+title: "[Infra]: "
+labels: ["infrastructure", "triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for pipeline failures, deployment problems, or environment configuration issues.
+        For bugs in the running application, use the **Bug Report** template instead.
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Affected environment
+      options:
+        - dev
+        - uat
+        - prod
+        - demo
+        - hotfix
+        - preview / PR environment
+        - All environments
+        - Local / make target
+    validations:
+      required: true
+
+  - type: dropdown
+    id: deployment_target
+    attributes:
+      label: Deployment target
+      options:
+        - Kubernetes / EKS / AKS / GKE
+        - AWS Lambda
+        - AWS Elastic Beanstalk
+        - Google App Engine
+        - Google Cloud Run
+        - Library / no deployment (cloud_type=none)
+        - Not applicable
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Affected workflow
+      description: Which GitHub Actions workflow is failing or misbehaving?
+      options:
+        - main-build.yml
+        - pr-build.yml
+        - deploy.yml
+        - deploy-blue-green.yml
+        - deploy-container.yml
+        - scan.yml
+        - automerge.yml
+        - slash-commands.yml
+        - environment-destroy.yml
+        - environment-unlock.yml
+        - jira-integration.yml
+        - make target (local)
+        - Not a workflow issue
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong? Describe the failure clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: trigger
+    attributes:
+      label: What triggered the issue?
+      description: The branch, event, or action that caused the problem.
+      placeholder: |
+        - Pushed to release/v2.1.0
+        - Opened a PR from feature/my-feature → develop
+        - Ran `make deploy` locally
+    validations:
+      required: true
+
+  - type: input
+    id: run_url
+    attributes:
+      label: Workflow run URL
+      description: Link to the failed GitHub Actions run, if applicable.
+      placeholder: "https://github.com/org/repo/actions/runs/..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: >
+        Paste the key error lines from the workflow log or container output.
+        Do **not** include secrets, credentials, or sensitive environment values.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: >
+        Relevant sections of `inputs-global.yaml` or other configuration, related issues,
+        or anything else that helps narrow down the problem.
+    validations:
+      required: false

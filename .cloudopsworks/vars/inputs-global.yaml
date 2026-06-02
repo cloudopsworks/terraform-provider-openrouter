@@ -8,7 +8,7 @@ repository_owner: "cloudopsworks"
 ## Image variant should be used for the specific version of OS image to run
 golang:
   main_file: .
-  version: 1.25
+  version: 1.26
 #  dist: linux
 #  arch: amd64
 #  image_variant: alpine:3.21

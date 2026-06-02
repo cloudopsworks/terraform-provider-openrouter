@@ -155,7 +155,7 @@ jobs:
     needs:
       - code-build
       - deploy-container
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.code-build.outputs.runner_set }}
     if: |
       (! cancelled()) &&
       (needs.code-build.result == 'success') &&
@@ -179,6 +179,17 @@ jobs:
             *.zip
           token: ${{ secrets.BOT_TOKEN }}
 
+      ##
+      # GoReleaser pipeline, this pipeline will be triggered only if the code-build job has golang_goreleaser output set to true, this is an opt-in output that can be set in the .cloudopsworks/vars/inputs-global.yaml file or in the project specific vars file, example .cloudopsworks/vars/inputs-myproject.yaml
+      #  gpg_private_key: will be used to compute GPG_FINGERPRINT for goreleaser
+      #  gpg_passphrase: exposed as PASSPHRASE to goreleaser for GPG signing
+      #  homebrew_tap_token: exposed as HOMEBREW_TAP_TOKEN to goreleaser, if HOMEBREW_TAP_TOKEN is not set it will fallback to BOT_TOKEN
+      #  chocolatey_api_key: exposed as CHOCOLATEY_API_KEY to goreleaser
+      #  apple_certificate_b64: exposed as MACOS_SIGN_P12 to goreleaser
+      #  apple_certificate_pass: exposed as MACOS_SIGN_PASSWORD to goreleaser
+      #  apple_store_connect_key_b64: exposed as MACOS_NOTARY_KEY to goreleaser
+      #  apple_store_connect_key_id: exposed as MACOS_NOTARY_KEY_ID to goreleaser
+      #  apple_store_connect_issuer_id: exposed as MACOS_NOTARY_ISSUER_ID to goreleaser
       - name: GoReleaser Pipeline
         uses: ./bp/cd/go/release
         if: needs.code-build.outputs.golang_goreleaser == 'true'
@@ -188,7 +199,14 @@ jobs:
           gpg_passphrase: ${{ secrets.GPG_PASSPHRASE }}
           semver: ${{ needs.code-build.outputs.semver }}
           golang_version: ${{ needs.code-build.outputs.golang_version }}
-
+          homebrew_tap_token: ${{ secrets.HOMEBREW_TAP_TOKEN != '' && secrets.HOMEBREW_TAP_TOKEN || secrets.BOT_TOKEN }}
+          chocolatey_api_key: ${{ secrets.CHOCOLATEY_API_KEY }}
+          apple_certificate_b64: ${{ secrets.APPLE_SIGN_CERTIFICATE_BASE64 != '' && secrets.APPLE_SIGN_CERTIFICATE_BASE64 || secrets.XCODE_BUILD_CERTIFICATE_BASE64 }}
+          apple_certificate_pass: ${{ secrets.APPLE_SIGN_CERTIFICATE_PASS != '' && secrets.APPLE_SIGN_CERTIFICATE_PASS || secrets.XCODE_BUILD_CERTIFICATE_PASS }}
+          apple_keychain_password: ${{ secrets.APPLE_KEYCHAIN_PASSWORD != '' && secrets.APPLE_KEYCHAIN_PASSWORD || secrets.XCODE_KEYCHAIN_PASSWORD }}
+          apple_store_connect_key_b64: ${{ secrets.APPLE_STORE_CONNECT_KEY_BASE64 }}
+          apple_store_connect_key_id: ${{ secrets.APPLE_STORE_CONNECT_KEY_ID }}
+          apple_store_connect_issuer_id: ${{ secrets.APPLE_STORE_CONNECT_ISSUER_ID }}
   scan:
     name: 'Code Scan SAST/SCA/DAST'
     needs:
@@ -222,7 +240,8 @@ jobs:
       (needs.code-build.result == 'success') &&
       (needs.code-build.outputs.blue_green_enabled != 'true') && 
       (needs.code-build.outputs.deployment_enabled == 'true') && 
-      (needs.code-build.outputs.is_library != 'true')
+      (needs.code-build.outputs.is_library != 'true') && 
+      (needs.code-build.outputs.golang_goreleaser != 'true')
     uses: ./.github/workflows/deploy.yml
     with:
       deployment_name: ${{ needs.code-build.outputs.deployment_name }}
@@ -257,7 +276,8 @@ jobs:
       (needs.code-build.result == 'success') &&
       (needs.code-build.outputs.blue_green_enabled == 'true')  && 
       (needs.code-build.outputs.deployment_enabled == 'true') && 
-      (needs.code-build.outputs.is_library != 'true')
+      (needs.code-build.outputs.is_library != 'true') && 
+      (needs.code-build.outputs.golang_goreleaser != 'true')
     uses: ./.github/workflows/deploy-blue-green.yml
     with:
       deployment_name: ${{ needs.code-build.outputs.deployment_name }}
