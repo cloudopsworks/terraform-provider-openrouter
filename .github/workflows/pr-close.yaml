@@ -104,7 +104,7 @@ jobs:
 
       - name: Preview Destroy Azure
         if: ${{ steps.config.outputs.cloud == 'AZURE' }}
-        uses: ./bp/cd/deploy/app/azure
+        uses: ./bp/cd/deploy/preview/azure
         with:
           destroy: true
           cloud_type: ${{ steps.config.outputs.cloud }}
@@ -124,7 +124,7 @@ jobs:
 
       - name: Preview Destroy GCP
         if: ${{ steps.config.outputs.cloud == 'GCP' }}
-        uses: ./bp/cd/deploy/app/azure
+        uses: ./bp/cd/deploy/preview/gcp
         with:
           destroy: true
           cloud_type: ${{ steps.config.outputs.cloud }}
@@ -163,8 +163,10 @@ jobs:
       - name: Delete local & remote Release
         if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') ) }}
         working-directory: ${{ steps.co.outputs.source_path }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          RELVER=$(echo "${{ github.head_ref }}" | sed -e 's/release\///g')
+          RELVER=$(echo "$HEAD_REF" | sed -e 's/release\///g')
           make gitflow/release/purge:$RELVER
 
       - name: Delete local & remote Hotfix
@@ -176,6 +178,8 @@ jobs:
       - name: Delete local & remote Feature
         if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'feature/') }}
         working-directory: ${{ steps.co.outputs.source_path }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          FEATURE=$(echo "${{ github.head_ref }}" | sed -e 's/feature\///g')
+          FEATURE=$(echo "$HEAD_REF" | sed -e 's/feature\///g')
           make gitflow/feature/purge:$FEATURE
