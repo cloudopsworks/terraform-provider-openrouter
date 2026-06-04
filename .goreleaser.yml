@@ -13,7 +13,7 @@ builds:
     - CGO_ENABLED=0
   mod_timestamp: '{{ .CommitTimestamp }}'
   flags:
-    - -trimpath
+    - "-trimpath"
   ldflags:
     - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
   goos:
@@ -66,8 +66,9 @@ changelog:
 notarize:
   macos:
     - enabled: '{{ isEnvSet "MACOS_SIGN_P12" }}'
+      # Keep aligned with RELEASING.md: the repository/release artifact name is intentionally fixed.
       ids:
-        - {{ .ProjectName }}
+        - terraform-provider-openrouter
       sign:
         certificate: '{{ .Env.MACOS_SIGN_P12 }}'
         password: '{{ .Env.MACOS_SIGN_PASSWORD }}'
