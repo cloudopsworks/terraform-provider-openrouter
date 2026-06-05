@@ -322,4 +322,4 @@ This project is maintained by [Cloud Ops Works LLC][website].
   [share_reddit]: https://reddit.com/submit/?url=https://github.com/cloudopsworks/terraform-provider-openrouter
   [share_facebook]: https://facebook.com/sharer/sharer.php?u=https://github.com/cloudopsworks/terraform-provider-openrouter
   [share_email]: mailto:?subject=Terraform+Provider+OpenRouter&body=https://github.com/cloudopsworks/terraform-provider-openrouter
-  [beacon]: https://ga-beacon.cloudospworks.co/G-QMZVYYN2VN/cloudopsworks/terraform-provider-openrouter?pixel&cs=github&cm=readme&an=terraform-provider-openrouter
+  [beacon]: https://ga-beacon.cloudopsworks.co/G-QMZVYYN2VN/cloudopsworks/terraform-provider-openrouter?pixel&cs=github&cm=readme&an=terraform-provider-openrouter
