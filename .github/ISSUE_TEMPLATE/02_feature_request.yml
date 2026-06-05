@@ -1,5 +1,5 @@
 name: Feature Request
-description: Propose a new capability or improvement to the service.
+description: Propose a new resource, data source, or improvement to the provider.
 title: "[Feature]: "
 labels: ["enhancement", "triage"]
 assignees: []
@@ -10,22 +10,43 @@ body:
       value: |
         Thanks for the suggestion. A well-described proposal makes it much easier to evaluate and prioritize.
 
+        Please search existing issues before opening a new one — someone may have already proposed this.
+
   - type: dropdown
     id: area
     attributes:
       label: Feature area
-      description: Which part of the service would this affect?
+      description: Which part of the provider would this affect?
       options:
-        - API — new or changed endpoint
-        - Business logic / data processing
-        - Configuration / runtime behavior
-        - Observability (logs, metrics, tracing, alerting)
-        - Security / authentication / authorization
-        - Performance / scalability
-        - Developer experience / tooling
+        - New resource
+        - New data source
+        - Enhancement to an existing resource
+        - Enhancement to an existing data source
+        - Provider configuration / authentication
+        - Import support
+        - Documentation
+        - Developer experience / testing
         - Other
     validations:
       required: true
+
+  - type: input
+    id: resource_name
+    attributes:
+      label: Resource or data source name (if applicable)
+      description: The resource or data source this feature relates to, or the proposed name for a new one.
+      placeholder: "e.g. openrouter_model, data.openrouter_models"
+    validations:
+      required: false
+
+  - type: input
+    id: api_reference
+    attributes:
+      label: OpenRouter API reference
+      description: Link to the OpenRouter API documentation for the capability this feature would expose.
+      placeholder: "e.g. https://openrouter.ai/docs/..."
+    validations:
+      required: false
 
   - type: textarea
     id: problem
@@ -33,7 +54,7 @@ body:
       label: Problem or motivation
       description: |
         What gap or pain point does this address? Concrete examples help.
-        Example: "There is no way to filter results by date range — callers have to download everything and filter client-side."
+        Example: "There is no way to manage model routing preferences via Terraform — changes have to be applied manually through the dashboard."
     validations:
       required: true
 
@@ -41,7 +62,10 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: Describe the behavior or API change you would like to see.
+      description: |
+        Describe the resource, attribute, or behavior you would like to see.
+        If proposing a new resource, a rough HCL schema is very helpful.
+      render: hcl
     validations:
       required: true
 

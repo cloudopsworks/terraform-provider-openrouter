@@ -134,6 +134,13 @@ golang:
 
 Leave it unset when the repository should only build container/image artifacts. The release workflow keeps GoReleaser disabled by default.
 
+> **Required `.goreleaser.yml` configuration:** The CloudOps Works release workflow creates a GitHub draft release before invoking GoReleaser. Your `.goreleaser.yml` must include `release.use_existing_draft: true` so GoReleaser updates that draft instead of attempting to create a new release. Without this setting GoReleaser will fail because the release already exists.
+>
+> ```yaml
+> release:
+>   use_existing_draft: true
+> ```
+
 > **Required secrets when `goreleaser: true` is set:** The GoReleaser step signs release artifacts using GPG. Before enabling this flag you must add the following secrets at the repository or organization level:
 >
 > - `GPG_PRIVATE_KEY` — armored GPG private key used to sign released artifacts

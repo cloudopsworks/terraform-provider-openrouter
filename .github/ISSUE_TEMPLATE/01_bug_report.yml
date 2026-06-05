@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report unexpected behavior in the application.
+description: Report unexpected behavior in the Terraform provider.
 title: "[Bug]: "
 labels: ["bug", "triage"]
 assignees: []
@@ -10,52 +10,92 @@ body:
       value: |
         Thanks for taking the time to file a bug report. Please be as specific as possible — it speeds up the fix significantly.
 
+        Before opening an issue, please check that:
+        - You are running the latest provider version
+        - The same behavior is reproducible in a minimal configuration
+        - The issue is not already reported
+
   - type: input
-    id: service_version
+    id: provider_version
     attributes:
-      label: Service version
-      description: >
-        The version of the running service. Found in the `VERSION` file, the container image tag,
-        or the `version` field returned by the `/health` endpoint.
-      placeholder: "e.g. v1.4.2"
+      label: Provider version
+      description: The version of `terraform-provider-openrouter`. Run `terraform providers` to find it.
+      placeholder: "e.g. v0.3.1"
     validations:
       required: true
 
-  - type: dropdown
-    id: environment
+  - type: input
+    id: terraform_version
     attributes:
-      label: Environment
-      description: Where did you observe the bug?
-      options:
-        - Local / development machine
-        - dev
-        - uat
-        - prod
-        - demo
-        - Other
+      label: Terraform / OpenTofu version
+      description: Output of `terraform version` or `tofu version`.
+      placeholder: "e.g. Terraform v1.9.3"
     validations:
       required: true
 
   - type: dropdown
     id: component
     attributes:
-      label: Component
-      description: Which part of the service is affected?
+      label: Affected component
+      description: Which part of the provider is affected?
       options:
-        - API / request handling
-        - Business logic / data processing
-        - Configuration / startup
-        - Health / readiness check
-        - Observability (logs, metrics, tracing)
+        - Resource — openrouter_*
+        - Data source — data.openrouter_*
+        - Provider configuration / authentication
+        - Import
+        - Documentation
         - Other
     validations:
       required: true
 
-  - type: textarea
-    id: description
+  - type: input
+    id: resource_name
     attributes:
-      label: Description
-      description: A clear and concise description of what the bug is.
+      label: Affected resource or data source
+      description: The full resource or data source type name, if applicable.
+      placeholder: "e.g. openrouter_model, data.openrouter_models"
+    validations:
+      required: false
+
+  - type: textarea
+    id: terraform_config
+    attributes:
+      label: Terraform configuration
+      description: >
+        Minimal reproducible configuration. Remove any sensitive values — do **not** paste API keys or credentials.
+      render: hcl
+      placeholder: |
+        terraform {
+          required_providers {
+            openrouter = {
+              source  = "cloudopsworks/openrouter"
+              version = "~> 0.3"
+            }
+          }
+        }
+
+        provider "openrouter" {}
+
+        resource "openrouter_..." "example" {
+          ...
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Terraform to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead? Include the full error message or plan/apply output.
+      render: shell
     validations:
       required: true
 
@@ -65,33 +105,29 @@ body:
       label: Steps to reproduce
       description: Minimal steps that reliably trigger the bug.
       placeholder: |
-        1. Send POST /api/v1/resource with body {...}
-        2. Observe response status 500
-        3. Check logs for error message
+        1. Configure the provider with ...
+        2. Run `terraform plan`
+        3. Observe error: ...
     validations:
       required: true
 
   - type: textarea
-    id: expected
+    id: debug_output
     attributes:
-      label: Expected behavior
+      label: Debug output (optional)
+      description: >
+        Run with `TF_LOG=DEBUG terraform apply` and paste relevant lines.
+        Remove any sensitive values before pasting.
+      render: shell
     validations:
-      required: true
-
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior
-      description: Include relevant log lines or error messages. Do **not** paste secrets or credentials.
-    validations:
-      required: true
+      required: false
 
   - type: textarea
     id: additional
     attributes:
       label: Additional context
       description: >
-        Anything else that helps narrow down the problem — request/response examples,
-        relevant configuration flags, a workflow run URL, or a link to a related issue.
+        Anything else that helps narrow down the problem — OS/platform, CI environment,
+        related issues, or links to relevant OpenRouter API documentation.
     validations:
       required: false

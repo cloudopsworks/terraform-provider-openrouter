@@ -55,6 +55,7 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 release:
+  use_existing_draft: true
   extra_files:
     - glob: 'terraform-registry-manifest.json'
       name_template: '{{ .ProjectName }}_{{ .Version }}_manifest.json'
