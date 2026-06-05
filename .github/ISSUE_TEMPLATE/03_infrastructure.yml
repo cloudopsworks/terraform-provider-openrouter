@@ -1,66 +1,57 @@
-name: Infrastructure / Deployment Issue
-description: Report a problem with CI/CD pipelines, deployments, or environment configuration.
-title: "[Infra]: "
-labels: ["infrastructure", "triage"]
+name: Documentation Issue
+description: Report missing, incorrect, or unclear provider documentation.
+title: "[Docs]: "
+labels: ["documentation", "triage"]
 assignees: []
 
 body:
   - type: markdown
     attributes:
       value: |
-        Use this template for pipeline failures, deployment problems, or environment configuration issues.
-        For bugs in the running application, use the **Bug Report** template instead.
+        Use this template to report problems with the provider documentation — missing examples,
+        incorrect attribute descriptions, outdated guides, or confusing explanations.
+
+        For bugs in provider behavior, use the **Bug Report** template instead.
 
   - type: dropdown
-    id: environment
+    id: doc_type
     attributes:
-      label: Affected environment
+      label: Documentation type
+      description: Which part of the documentation is affected?
       options:
-        - dev
-        - uat
-        - prod
-        - demo
-        - hotfix
-        - preview / PR environment
-        - All environments
-        - Local / make target
+        - Resource documentation
+        - Data source documentation
+        - Provider configuration guide
+        - Import guide
+        - Example / tutorial
+        - README
+        - Changelog
+        - Other
     validations:
       required: true
 
-  - type: dropdown
-    id: deployment_target
+  - type: input
+    id: doc_location
     attributes:
-      label: Deployment target
-      options:
-        - Kubernetes / EKS / AKS / GKE
-        - AWS Lambda
-        - AWS Elastic Beanstalk
-        - Google App Engine
-        - Google Cloud Run
-        - Library / no deployment (cloud_type=none)
-        - Not applicable
+      label: Document or page
+      description: Link to the affected documentation page or file path in the repository.
+      placeholder: "e.g. docs/resources/model.md or https://registry.terraform.io/providers/..."
     validations:
-      required: true
+      required: false
 
   - type: dropdown
-    id: workflow
+    id: issue_type
     attributes:
-      label: Affected workflow
-      description: Which GitHub Actions workflow is failing or misbehaving?
+      label: Issue type
       options:
-        - main-build.yml
-        - pr-build.yml
-        - deploy.yml
-        - deploy-blue-green.yml
-        - deploy-container.yml
-        - scan.yml
-        - automerge.yml
-        - slash-commands.yml
-        - environment-destroy.yml
-        - environment-unlock.yml
-        - jira-integration.yml
-        - make target (local)
-        - Not a workflow issue
+        - Missing documentation
+        - Incorrect information
+        - Outdated information
+        - Unclear or confusing explanation
+        - Missing example
+        - Broken link
+        - Typo / formatting
+        - Other
     validations:
       required: true
 
@@ -68,39 +59,15 @@ body:
     id: description
     attributes:
       label: Description
-      description: What went wrong? Describe the failure clearly.
+      description: Describe what is wrong, missing, or unclear. Quote the relevant passage if applicable.
     validations:
       required: true
 
   - type: textarea
-    id: trigger
+    id: suggested_fix
     attributes:
-      label: What triggered the issue?
-      description: The branch, event, or action that caused the problem.
-      placeholder: |
-        - Pushed to release/v2.1.0
-        - Opened a PR from feature/my-feature → develop
-        - Ran `make deploy` locally
-    validations:
-      required: true
-
-  - type: input
-    id: run_url
-    attributes:
-      label: Workflow run URL
-      description: Link to the failed GitHub Actions run, if applicable.
-      placeholder: "https://github.com/org/repo/actions/runs/..."
-    validations:
-      required: false
-
-  - type: textarea
-    id: logs
-    attributes:
-      label: Relevant log output
-      description: >
-        Paste the key error lines from the workflow log or container output.
-        Do **not** include secrets, credentials, or sensitive environment values.
-      render: shell
+      label: Suggested improvement
+      description: If you know what the correct or improved content should be, describe it here.
     validations:
       required: false
 
@@ -108,8 +75,6 @@ body:
     id: additional
     attributes:
       label: Additional context
-      description: >
-        Relevant sections of `inputs-global.yaml` or other configuration, related issues,
-        or anything else that helps narrow down the problem.
+      description: Links to related resources, API documentation, or anything else that helps.
     validations:
       required: false

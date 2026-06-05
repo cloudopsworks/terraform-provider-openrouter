@@ -175,6 +175,7 @@ jobs:
           ref_name: ${{ needs.code-build.outputs.semver }}
           release_tag: ${{ needs.code-build.outputs.semver }}
           is_pre_release: ${{ needs.code-build.outputs.is_pre_release == 'true' }}
+          go_releaser_inuse: ${{ needs.code-build.outputs.golang_goreleaser == 'true' }}
           files_globs: |
             *.zip
           token: ${{ secrets.BOT_TOKEN }}
