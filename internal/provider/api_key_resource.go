@@ -78,8 +78,8 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 				Computed:            true,
 				MarkdownDescription: "Workspace UUID. If omitted, OpenRouter assigns the key to the default workspace. Replacement when changed.",
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
 					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"limit":                 resourceschema.Float64Attribute{Optional: true, Computed: true, MarkdownDescription: "Spending limit in USD."},

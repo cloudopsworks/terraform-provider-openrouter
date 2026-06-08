@@ -6,6 +6,10 @@ import (
 
 	frameworkresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/cloudopsworks/terraform-provider-openrouter/internal/client"
 )
@@ -30,16 +34,29 @@ func TestAPIKeyResourceWorkspaceIDSchemaSupportsAPIDefault(t *testing.T) {
 		t.Fatal("workspace_id must be Computed so API-defaulted workspace IDs can be recorded in state")
 	}
 
-	modifiersByDescription := make(map[string]bool, len(attr.PlanModifiers))
-	for _, modifier := range attr.PlanModifiers {
-		modifiersByDescription[modifier.Description(context.Background())] = true
+	priorWorkspaceID := "f7574683-5741-5f2a-9704-aef2c3ff2a05"
+	plannedWorkspaceID, requiresReplace := applyStringPlanModifiersForTest(
+		attr.PlanModifiers,
+		types.StringNull(),
+		types.StringUnknown(),
+		types.StringValue(priorWorkspaceID),
+	)
+	if requiresReplace {
+		t.Fatal("workspace_id must not force replacement when an omitted value is already resolved in state")
+	}
+	if plannedWorkspaceID.IsUnknown() || plannedWorkspaceID.ValueString() != priorWorkspaceID {
+		t.Fatalf("workspace_id planned value = %s, want prior state value %q", plannedWorkspaceID.String(), priorWorkspaceID)
 	}
 
-	if !modifiersByDescription["If the value of this attribute changes, Terraform will destroy and recreate the resource."] {
+	newWorkspaceID := "a1114683-5741-5f2a-9704-aef2c3ff2a05"
+	_, requiresReplace = applyStringPlanModifiersForTest(
+		attr.PlanModifiers,
+		types.StringValue(newWorkspaceID),
+		types.StringValue(newWorkspaceID),
+		types.StringValue(priorWorkspaceID),
+	)
+	if !requiresReplace {
 		t.Fatal("workspace_id must continue to force replacement when an explicitly configured value changes")
-	}
-	if !modifiersByDescription["Once set, the value of this attribute in state will not change."] {
-		t.Fatal("workspace_id must use prior state for unknown planned values to avoid spurious replans")
 	}
 }
 
@@ -59,4 +76,33 @@ func TestFlattenAPIKeyModelStoresReturnedWorkspaceID(t *testing.T) {
 	if got := model.WorkspaceID.ValueString(); got != workspaceID {
 		t.Fatalf("workspace_id = %q, want %q", got, workspaceID)
 	}
+}
+
+func applyStringPlanModifiersForTest(
+	modifiers []planmodifier.String,
+	configValue types.String,
+	planValue types.String,
+	stateValue types.String,
+) (types.String, bool) {
+	rawResourceValue := tftypes.NewValue(
+		tftypes.Object{AttributeTypes: map[string]tftypes.Type{}},
+		map[string]tftypes.Value{},
+	)
+	req := planmodifier.StringRequest{
+		ConfigValue: configValue,
+		PlanValue:   planValue,
+		StateValue:  stateValue,
+		Plan:        tfsdk.Plan{Raw: rawResourceValue},
+		State:       tfsdk.State{Raw: rawResourceValue},
+	}
+
+	requiresReplace := false
+	for _, modifier := range modifiers {
+		resp := &planmodifier.StringResponse{PlanValue: req.PlanValue}
+		modifier.PlanModifyString(context.Background(), req, resp)
+		req.PlanValue = resp.PlanValue
+		requiresReplace = requiresReplace || resp.RequiresReplace
+	}
+
+	return req.PlanValue, requiresReplace
 }
