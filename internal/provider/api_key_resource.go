@@ -71,9 +71,17 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 	resp.Schema = resourceschema.Schema{
 		MarkdownDescription: "Manage OpenRouter management API keys.",
 		Attributes: map[string]resourceschema.Attribute{
-			"id":                    resourceschema.StringAttribute{Computed: true, MarkdownDescription: "Stable API key hash."},
-			"name":                  resourceschema.StringAttribute{Required: true, MarkdownDescription: "Name of the API key."},
-			"workspace_id":          resourceschema.StringAttribute{Optional: true, MarkdownDescription: "Optional workspace UUID to send during API key creation. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"id":   resourceschema.StringAttribute{Computed: true, MarkdownDescription: "Stable API key hash."},
+			"name": resourceschema.StringAttribute{Required: true, MarkdownDescription: "Name of the API key."},
+			"workspace_id": resourceschema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Workspace UUID. If omitted, OpenRouter assigns the key to the default workspace. Replacement when changed.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"limit":                 resourceschema.Float64Attribute{Optional: true, Computed: true, MarkdownDescription: "Spending limit in USD."},
 			"limit_remaining":       resourceschema.Float64Attribute{Computed: true, MarkdownDescription: "Remaining limit in USD."},
 			"limit_reset":           resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Reset interval: daily, weekly, monthly, or null for no reset."},
