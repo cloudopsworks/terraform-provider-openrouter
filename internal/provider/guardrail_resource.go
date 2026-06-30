@@ -63,9 +63,17 @@ func (r *guardrailResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 	resp.Schema = resourceschema.Schema{
 		MarkdownDescription: "Manage OpenRouter guardrails.",
 		Attributes: map[string]resourceschema.Attribute{
-			"id":                resourceschema.StringAttribute{Computed: true},
-			"name":              resourceschema.StringAttribute{Required: true},
-			"workspace_id":      resourceschema.StringAttribute{Optional: true, MarkdownDescription: "Workspace UUID for the guardrail. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
+			"id":   resourceschema.StringAttribute{Computed: true},
+			"name": resourceschema.StringAttribute{Required: true},
+			"workspace_id": resourceschema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "Workspace UUID for the guardrail. If omitted, OpenRouter assigns the guardrail to the default workspace. Replacement when changed.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"description":       resourceschema.StringAttribute{Optional: true, Computed: true},
 			"limit_usd":         resourceschema.Float64Attribute{Optional: true, Computed: true},
 			"reset_interval":    resourceschema.StringAttribute{Optional: true, Computed: true},

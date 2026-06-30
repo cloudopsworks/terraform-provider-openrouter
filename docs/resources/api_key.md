@@ -23,7 +23,7 @@ resource "openrouter_api_key" "service" {
 - `include_byok_in_limit` - (Optional) Whether BYOK usage counts toward the limit.
 - `disabled` - (Optional) Whether the key is disabled.
 - `expires_at` - (Optional, Forces replacement) UTC ISO-8601 expiration timestamp.
-- `creator_user_id` - (Optional, Forces replacement) Optional organization member creator identifier.
+- `creator_user_id` - (Optional, Computed, Forces replacement) Optional organization member creator identifier. If omitted, the provider records the creator returned by OpenRouter.
 
 ## Attribute Reference
 

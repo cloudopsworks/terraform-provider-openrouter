@@ -19,7 +19,7 @@ resource "openrouter_guardrail" "prod" {
 ## Argument Reference
 
 - `name` - (Required) Guardrail name.
-- `workspace_id` - (Optional, Computed, Forces replacement) Workspace UUID for the guardrail. Defaults to the default workspace when omitted by the API.
+- `workspace_id` - (Optional, Computed, Forces replacement) Workspace UUID for the guardrail. If omitted, the provider records the workspace returned by OpenRouter.
 - `description` - (Optional) Guardrail description.
 - `limit_usd` - (Optional) USD limit.
 - `reset_interval` - (Optional) Reset interval.
