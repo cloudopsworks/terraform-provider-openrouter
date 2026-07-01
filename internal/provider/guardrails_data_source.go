@@ -54,9 +54,24 @@ func (d *guardrailsDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 			"allowed_providers": datasourceschema.SetAttribute{Computed: true, ElementType: types.StringType},
 			"ignored_models":    datasourceschema.SetAttribute{Computed: true, ElementType: types.StringType},
 			"ignored_providers": datasourceschema.SetAttribute{Computed: true, ElementType: types.StringType},
-			"enforce_zdr":       datasourceschema.BoolAttribute{Computed: true},
-			"created_at":        datasourceschema.StringAttribute{Computed: true},
-			"updated_at":        datasourceschema.StringAttribute{Computed: true},
+			"content_filter_builtins": datasourceschema.ListNestedAttribute{Computed: true, NestedObject: datasourceschema.NestedAttributeObject{Attributes: map[string]datasourceschema.Attribute{
+				"slug":       datasourceschema.StringAttribute{Computed: true},
+				"action":     datasourceschema.StringAttribute{Computed: true},
+				"label":      datasourceschema.StringAttribute{Computed: true},
+				"scan_scope": datasourceschema.StringAttribute{Computed: true},
+			}}},
+			"content_filters": datasourceschema.ListNestedAttribute{Computed: true, NestedObject: datasourceschema.NestedAttributeObject{Attributes: map[string]datasourceschema.Attribute{
+				"pattern": datasourceschema.StringAttribute{Computed: true},
+				"action":  datasourceschema.StringAttribute{Computed: true},
+				"label":   datasourceschema.StringAttribute{Computed: true},
+			}}},
+			"enforce_zdr":           datasourceschema.BoolAttribute{Computed: true},
+			"enforce_zdr_anthropic": datasourceschema.BoolAttribute{Computed: true},
+			"enforce_zdr_google":    datasourceschema.BoolAttribute{Computed: true},
+			"enforce_zdr_openai":    datasourceschema.BoolAttribute{Computed: true},
+			"enforce_zdr_other":     datasourceschema.BoolAttribute{Computed: true},
+			"created_at":            datasourceschema.StringAttribute{Computed: true},
+			"updated_at":            datasourceschema.StringAttribute{Computed: true},
 		}}},
 	}}
 }
@@ -73,19 +88,25 @@ func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		return
 	}
 	itemType := map[string]attr.Type{
-		"id":                types.StringType,
-		"name":              types.StringType,
-		"workspace_id":      types.StringType,
-		"description":       types.StringType,
-		"limit_usd":         types.Float64Type,
-		"reset_interval":    types.StringType,
-		"allowed_models":    types.SetType{ElemType: types.StringType},
-		"allowed_providers": types.SetType{ElemType: types.StringType},
-		"ignored_models":    types.SetType{ElemType: types.StringType},
-		"ignored_providers": types.SetType{ElemType: types.StringType},
-		"enforce_zdr":       types.BoolType,
-		"created_at":        types.StringType,
-		"updated_at":        types.StringType,
+		"id":                      types.StringType,
+		"name":                    types.StringType,
+		"workspace_id":            types.StringType,
+		"description":             types.StringType,
+		"limit_usd":               types.Float64Type,
+		"reset_interval":          types.StringType,
+		"allowed_models":          types.SetType{ElemType: types.StringType},
+		"allowed_providers":       types.SetType{ElemType: types.StringType},
+		"ignored_models":          types.SetType{ElemType: types.StringType},
+		"ignored_providers":       types.SetType{ElemType: types.StringType},
+		"content_filter_builtins": types.ListType{ElemType: contentFilterBuiltinObjectType},
+		"content_filters":         types.ListType{ElemType: contentFilterObjectType},
+		"enforce_zdr":             types.BoolType,
+		"enforce_zdr_anthropic":   types.BoolType,
+		"enforce_zdr_google":      types.BoolType,
+		"enforce_zdr_openai":      types.BoolType,
+		"enforce_zdr_other":       types.BoolType,
+		"created_at":              types.StringType,
+		"updated_at":              types.StringType,
 	}
 	objects := make([]attr.Value, 0, len(items))
 	for _, item := range items {
@@ -97,20 +118,30 @@ func (d *guardrailsDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		resp.Diagnostics.Append(diags...)
 		ignoredProviders, diags := setStringValueOrNull(ctx, item.IgnoredProviders)
 		resp.Diagnostics.Append(diags...)
+		contentFilterBuiltins, diags := contentFilterBuiltinsValue(ctx, item.ContentFilterBuiltins)
+		resp.Diagnostics.Append(diags...)
+		contentFilters, diags := contentFiltersValue(ctx, item.ContentFilters)
+		resp.Diagnostics.Append(diags...)
 		object, diags := types.ObjectValue(itemType, map[string]attr.Value{
-			"id":                types.StringValue(item.ID),
-			"name":              types.StringValue(item.Name),
-			"workspace_id":      stringPtrValue(item.WorkspaceID),
-			"description":       stringPtrValue(item.Description),
-			"limit_usd":         float64PtrValue(item.LimitUSD),
-			"reset_interval":    stringPtrValue(item.ResetInterval),
-			"allowed_models":    allowedModels,
-			"allowed_providers": allowedProviders,
-			"ignored_models":    ignoredModels,
-			"ignored_providers": ignoredProviders,
-			"enforce_zdr":       boolPtrValue(item.EnforceZDR),
-			"created_at":        types.StringValue(item.CreatedAt),
-			"updated_at":        stringPtrValue(item.UpdatedAt),
+			"id":                      types.StringValue(item.ID),
+			"name":                    types.StringValue(item.Name),
+			"workspace_id":            stringPtrValue(item.WorkspaceID),
+			"description":             stringPtrValue(item.Description),
+			"limit_usd":               float64PtrValue(item.LimitUSD),
+			"reset_interval":          stringPtrValue(item.ResetInterval),
+			"allowed_models":          allowedModels,
+			"allowed_providers":       allowedProviders,
+			"ignored_models":          ignoredModels,
+			"ignored_providers":       ignoredProviders,
+			"content_filter_builtins": contentFilterBuiltins,
+			"content_filters":         contentFilters,
+			"enforce_zdr":             boolPtrValue(item.EnforceZDR),
+			"enforce_zdr_anthropic":   boolPtrValue(item.EnforceZDRAnthropic),
+			"enforce_zdr_google":      boolPtrValue(item.EnforceZDRGoogle),
+			"enforce_zdr_openai":      boolPtrValue(item.EnforceZDROpenAI),
+			"enforce_zdr_other":       boolPtrValue(item.EnforceZDROther),
+			"created_at":              types.StringValue(item.CreatedAt),
+			"updated_at":              stringPtrValue(item.UpdatedAt),
 		})
 		resp.Diagnostics.Append(diags...)
 		objects = append(objects, object)

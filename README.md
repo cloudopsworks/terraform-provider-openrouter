@@ -112,7 +112,18 @@ resource "openrouter_guardrail" "search_team" {
   limit_usd         = 200 # monthly USD cap
   reset_interval    = "monthly"
   allowed_providers = ["openai", "anthropic"]
-  enforce_zdr       = true
+
+  enforce_zdr_anthropic = true
+  enforce_zdr_google    = false
+  enforce_zdr_openai    = true
+  enforce_zdr_other     = false
+
+  content_filter_builtins = [
+    {
+      slug   = "email"
+      action = "redact"
+    }
+  ]
 }
 
 resource "openrouter_api_key" "search_team" {

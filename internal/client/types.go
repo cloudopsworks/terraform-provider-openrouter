@@ -145,19 +145,25 @@ type WorkspaceUpsertRequest struct {
 }
 
 type Guardrail struct {
-	ID               string   `json:"id"`
-	Name             string   `json:"name"`
-	WorkspaceID      *string  `json:"workspace_id"`
-	Description      *string  `json:"description"`
-	LimitUSD         *float64 `json:"limit_usd"`
-	ResetInterval    *string  `json:"reset_interval"`
-	AllowedModels    []string `json:"allowed_models"`
-	AllowedProviders []string `json:"allowed_providers"`
-	IgnoredModels    []string `json:"ignored_models"`
-	IgnoredProviders []string `json:"ignored_providers"`
-	EnforceZDR       *bool    `json:"enforce_zdr"`
-	CreatedAt        string   `json:"created_at"`
-	UpdatedAt        *string  `json:"updated_at"`
+	ID                    string                      `json:"id"`
+	Name                  string                      `json:"name"`
+	WorkspaceID           *string                     `json:"workspace_id"`
+	Description           *string                     `json:"description"`
+	LimitUSD              *float64                    `json:"limit_usd"`
+	ResetInterval         *string                     `json:"reset_interval"`
+	AllowedModels         []string                    `json:"allowed_models"`
+	AllowedProviders      []string                    `json:"allowed_providers"`
+	IgnoredModels         []string                    `json:"ignored_models"`
+	IgnoredProviders      []string                    `json:"ignored_providers"`
+	ContentFilterBuiltins []ContentFilterBuiltinEntry `json:"content_filter_builtins"`
+	ContentFilters        []ContentFilterEntry        `json:"content_filters"`
+	EnforceZDR            *bool                       `json:"enforce_zdr"`
+	EnforceZDRAnthropic   *bool                       `json:"enforce_zdr_anthropic"`
+	EnforceZDRGoogle      *bool                       `json:"enforce_zdr_google"`
+	EnforceZDROpenAI      *bool                       `json:"enforce_zdr_openai"`
+	EnforceZDROther       *bool                       `json:"enforce_zdr_other"`
+	CreatedAt             string                      `json:"created_at"`
+	UpdatedAt             *string                     `json:"updated_at"`
 }
 
 func (g Guardrail) Validate() error {
@@ -168,16 +174,41 @@ func (g Guardrail) Validate() error {
 }
 
 type GuardrailUpsertRequest struct {
-	Name             *string   `json:"name,omitempty"`
-	WorkspaceID      *string   `json:"workspace_id,omitempty"`
-	Description      *string   `json:"description,omitempty"`
-	LimitUSD         *float64  `json:"limit_usd,omitempty"`
-	ResetInterval    *string   `json:"reset_interval,omitempty"`
-	AllowedModels    *[]string `json:"allowed_models,omitempty"`
-	AllowedProviders *[]string `json:"allowed_providers,omitempty"`
-	IgnoredModels    *[]string `json:"ignored_models,omitempty"`
-	IgnoredProviders *[]string `json:"ignored_providers,omitempty"`
-	EnforceZDR       *bool     `json:"enforce_zdr,omitempty"`
+	Name                  *string                           `json:"name,omitempty"`
+	WorkspaceID           *string                           `json:"workspace_id,omitempty"`
+	Description           *string                           `json:"description,omitempty"`
+	LimitUSD              *float64                          `json:"limit_usd,omitempty"`
+	ResetInterval         *string                           `json:"reset_interval,omitempty"`
+	AllowedModels         *[]string                         `json:"allowed_models,omitempty"`
+	AllowedProviders      *[]string                         `json:"allowed_providers,omitempty"`
+	IgnoredModels         *[]string                         `json:"ignored_models,omitempty"`
+	IgnoredProviders      *[]string                         `json:"ignored_providers,omitempty"`
+	ContentFilterBuiltins *[]ContentFilterBuiltinEntryInput `json:"content_filter_builtins,omitempty"`
+	ContentFilters        *[]ContentFilterEntry             `json:"content_filters,omitempty"`
+	EnforceZDR            *bool                             `json:"enforce_zdr,omitempty"`
+	EnforceZDRAnthropic   *bool                             `json:"enforce_zdr_anthropic,omitempty"`
+	EnforceZDRGoogle      *bool                             `json:"enforce_zdr_google,omitempty"`
+	EnforceZDROpenAI      *bool                             `json:"enforce_zdr_openai,omitempty"`
+	EnforceZDROther       *bool                             `json:"enforce_zdr_other,omitempty"`
+}
+
+type ContentFilterBuiltinEntryInput struct {
+	Slug      string  `json:"slug"`
+	Action    string  `json:"action"`
+	ScanScope *string `json:"scan_scope,omitempty"`
+}
+
+type ContentFilterBuiltinEntry struct {
+	Slug      string  `json:"slug"`
+	Action    string  `json:"action"`
+	Label     *string `json:"label,omitempty"`
+	ScanScope *string `json:"scan_scope,omitempty"`
+}
+
+type ContentFilterEntry struct {
+	Pattern string  `json:"pattern"`
+	Action  string  `json:"action"`
+	Label   *string `json:"label,omitempty"`
 }
 
 type OrganizationMember struct {

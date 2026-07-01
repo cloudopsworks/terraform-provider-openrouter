@@ -43,7 +43,18 @@ resource "openrouter_guardrail" "team" {
   limit_usd         = each.value.monthly_limit_usd
   reset_interval    = "monthly"
   allowed_providers = each.value.allowed_providers
-  enforce_zdr       = true
+
+  enforce_zdr_anthropic = true
+  enforce_zdr_google    = false
+  enforce_zdr_openai    = true
+  enforce_zdr_other     = false
+
+  content_filter_builtins = [
+    {
+      slug   = "email"
+      action = "redact"
+    }
+  ]
 }
 
 resource "openrouter_api_key" "team" {

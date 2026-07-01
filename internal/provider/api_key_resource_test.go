@@ -78,6 +78,70 @@ func TestFlattenAPIKeyModelStoresReturnedWorkspaceID(t *testing.T) {
 	}
 }
 
+func TestAPIKeyResourceCreatorUserIDSchemaSupportsAPIDefault(t *testing.T) {
+	t.Parallel()
+
+	var resp frameworkresource.SchemaResponse
+	NewAPIKeyResource().Schema(context.Background(), frameworkresource.SchemaRequest{}, &resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected schema diagnostics: %s", resp.Diagnostics)
+	}
+
+	attr, ok := resp.Schema.Attributes["creator_user_id"].(resourceschema.StringAttribute)
+	if !ok {
+		t.Fatalf("creator_user_id attribute type = %T, want schema.StringAttribute", resp.Schema.Attributes["creator_user_id"])
+	}
+	if !attr.Optional {
+		t.Fatal("creator_user_id must remain Optional so users can explicitly select a creator")
+	}
+	if !attr.Computed {
+		t.Fatal("creator_user_id must be Computed so API-defaulted creator IDs can be recorded in state")
+	}
+
+	priorCreatorUserID := "user_abc123"
+	plannedCreatorUserID, requiresReplace := applyStringPlanModifiersForTest(
+		attr.PlanModifiers,
+		types.StringNull(),
+		types.StringUnknown(),
+		types.StringValue(priorCreatorUserID),
+	)
+	if requiresReplace {
+		t.Fatal("creator_user_id must not force replacement when an omitted value is already resolved in state")
+	}
+	if plannedCreatorUserID.IsUnknown() || plannedCreatorUserID.ValueString() != priorCreatorUserID {
+		t.Fatalf("creator_user_id planned value = %s, want prior state value %q", plannedCreatorUserID.String(), priorCreatorUserID)
+	}
+
+	newCreatorUserID := "user_def456"
+	_, requiresReplace = applyStringPlanModifiersForTest(
+		attr.PlanModifiers,
+		types.StringValue(newCreatorUserID),
+		types.StringValue(newCreatorUserID),
+		types.StringValue(priorCreatorUserID),
+	)
+	if !requiresReplace {
+		t.Fatal("creator_user_id must continue to force replacement when an explicitly configured value changes")
+	}
+}
+
+func TestFlattenAPIKeyModelStoresReturnedCreatorUserID(t *testing.T) {
+	t.Parallel()
+
+	creatorUserID := "user_abc123"
+	model := flattenAPIKeyModel(client.APIKey{
+		Hash:          "key-hash",
+		Name:          "test-key",
+		CreatorUserID: &creatorUserID,
+	})
+
+	if model.CreatorUserID.IsNull() || model.CreatorUserID.IsUnknown() {
+		t.Fatal("creator_user_id should be known when the API returns a default creator user ID")
+	}
+	if got := model.CreatorUserID.ValueString(); got != creatorUserID {
+		t.Fatalf("creator_user_id = %q, want %q", got, creatorUserID)
+	}
+}
+
 func applyStringPlanModifiersForTest(
 	modifiers []planmodifier.String,
 	configValue types.String,

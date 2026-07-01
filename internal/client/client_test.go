@@ -234,3 +234,111 @@ func TestListGuardrailsPassesWorkspaceFilter(t *testing.T) {
 		t.Fatalf("expected 1 guardrail, got %d", len(items))
 	}
 }
+
+func TestGuardrailOfficialFieldsMarshalAndUnmarshal(t *testing.T) {
+	t.Parallel()
+
+	name := "production"
+	workspaceID := "ws-1"
+	scanScope := "user_only"
+	customLabel := "[API_KEY]"
+	trueValue := true
+	falseValue := false
+	builtins := []ContentFilterBuiltinEntryInput{
+		{Slug: "regex-prompt-injection", Action: "flag", ScanScope: &scanScope},
+	}
+	customFilters := []ContentFilterEntry{
+		{Pattern: "\\b(sk-[a-zA-Z0-9]{48})\\b", Action: "redact", Label: &customLabel},
+	}
+
+	payload, err := json.Marshal(GuardrailUpsertRequest{
+		Name:                  &name,
+		WorkspaceID:           &workspaceID,
+		ContentFilterBuiltins: &builtins,
+		ContentFilters:        &customFilters,
+		EnforceZDRAnthropic:   &trueValue,
+		EnforceZDRGoogle:      &falseValue,
+		EnforceZDROpenAI:      &trueValue,
+		EnforceZDROther:       &falseValue,
+	})
+	if err != nil {
+		t.Fatalf("marshal guardrail request: %v", err)
+	}
+	var requestBody map[string]any
+	if err := json.Unmarshal(payload, &requestBody); err != nil {
+		t.Fatalf("unmarshal guardrail request: %v", err)
+	}
+	for _, key := range []string{
+		"content_filter_builtins",
+		"content_filters",
+		"enforce_zdr_anthropic",
+		"enforce_zdr_google",
+		"enforce_zdr_openai",
+		"enforce_zdr_other",
+	} {
+		if _, ok := requestBody[key]; !ok {
+			t.Fatalf("guardrail request missing %q in %s", key, payload)
+		}
+	}
+	builtinPayload := requestBody["content_filter_builtins"].([]any)[0].(map[string]any)
+	if _, ok := builtinPayload["label"]; ok {
+		t.Fatalf("builtin request included deprecated label: %s", payload)
+	}
+
+	var clearBuiltins []ContentFilterBuiltinEntryInput
+	clearPayload, err := json.Marshal(GuardrailUpsertRequest{ContentFilterBuiltins: &clearBuiltins})
+	if err != nil {
+		t.Fatalf("marshal clear guardrail request: %v", err)
+	}
+	var clearBody map[string]any
+	if err := json.Unmarshal(clearPayload, &clearBody); err != nil {
+		t.Fatalf("unmarshal clear guardrail request: %v", err)
+	}
+	if value, ok := clearBody["content_filter_builtins"]; !ok || value != nil {
+		t.Fatalf("clear builtin filters payload = %#v, want explicit null in %s", value, clearPayload)
+	}
+
+	responseJSON := []byte(`{
+		"data": {
+			"id": "gr-1",
+			"name": "production",
+			"workspace_id": "ws-1",
+			"content_filter_builtins": [
+				{"slug": "email", "action": "redact", "label": "[EMAIL]"},
+				{"slug": "regex-prompt-injection", "action": "flag", "scan_scope": "user_only"}
+			],
+			"content_filters": [
+				{"pattern": "\\b(sk-[a-zA-Z0-9]{48})\\b", "action": "redact", "label": "[API_KEY]"}
+			],
+			"enforce_zdr": null,
+			"enforce_zdr_anthropic": true,
+			"enforce_zdr_google": false,
+			"enforce_zdr_openai": true,
+			"enforce_zdr_other": false,
+			"created_at": "2026-06-30T00:00:00Z",
+			"updated_at": "2026-06-30T01:00:00Z"
+		}
+	}`)
+	var response singleResponse[Guardrail]
+	if err := json.Unmarshal(responseJSON, &response); err != nil {
+		t.Fatalf("unmarshal guardrail response: %v", err)
+	}
+	if err := response.Data.Validate(); err != nil {
+		t.Fatalf("guardrail response validation: %v", err)
+	}
+	if len(response.Data.ContentFilterBuiltins) != 2 {
+		t.Fatalf("content_filter_builtins length = %d, want 2", len(response.Data.ContentFilterBuiltins))
+	}
+	if response.Data.ContentFilterBuiltins[0].Label == nil || *response.Data.ContentFilterBuiltins[0].Label != "[EMAIL]" {
+		t.Fatalf("first builtin label = %#v, want [EMAIL]", response.Data.ContentFilterBuiltins[0].Label)
+	}
+	if response.Data.ContentFilterBuiltins[1].ScanScope == nil || *response.Data.ContentFilterBuiltins[1].ScanScope != "user_only" {
+		t.Fatalf("second builtin scan_scope = %#v, want user_only", response.Data.ContentFilterBuiltins[1].ScanScope)
+	}
+	if response.Data.EnforceZDR != nil {
+		t.Fatalf("legacy enforce_zdr = %#v, want nil from response null", response.Data.EnforceZDR)
+	}
+	if response.Data.EnforceZDRAnthropic == nil || !*response.Data.EnforceZDRAnthropic {
+		t.Fatalf("enforce_zdr_anthropic = %#v, want true", response.Data.EnforceZDRAnthropic)
+	}
+}
