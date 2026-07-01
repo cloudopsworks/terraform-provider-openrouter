@@ -264,7 +264,7 @@ func (r *guardrailResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	newState, diags := flattenGuardrailModel(ctx, *updated, plan)
+	newState, diags := flattenGuardrailModel(ctx, *updated, guardrailUpdateFlattenPrior(plan, state))
 	resp.Diagnostics.Append(diags...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &newState)...)
 }
@@ -352,6 +352,20 @@ func guardrailZDRBoolAttribute(description string) resourceschema.BoolAttribute 
 			boolplanmodifier.UseStateForUnknown(),
 		},
 	}
+}
+
+func guardrailUpdateFlattenPrior(plan, state guardrailResourceModel) guardrailResourceModel {
+	prior := plan
+	if prior.EnforceZDR.IsUnknown() {
+		prior.EnforceZDR = state.EnforceZDR
+	}
+	if prior.ContentFilterBuiltins.IsUnknown() {
+		prior.ContentFilterBuiltins = state.ContentFilterBuiltins
+	}
+	if prior.ContentFilters.IsUnknown() {
+		prior.ContentFilters = state.ContentFilters
+	}
+	return prior
 }
 
 func buildGuardrailUpsertRequest(ctx context.Context, plan, config guardrailResourceModel, includeWorkspaceID bool) (client.GuardrailUpsertRequest, diag.Diagnostics) {

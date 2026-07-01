@@ -268,6 +268,60 @@ func TestFlattenGuardrailModelPreservesExplicitEmptyFilterLists(t *testing.T) {
 	}
 }
 
+func TestGuardrailUpdateFlattenPriorFallsBackToStateForUnknownPlanValues(t *testing.T) {
+	t.Parallel()
+
+	prior := guardrailUpdateFlattenPrior(
+		guardrailResourceModel{
+			EnforceZDR:            types.BoolUnknown(),
+			ContentFilterBuiltins: types.ListUnknown(contentFilterBuiltinObjectType),
+			ContentFilters:        types.ListUnknown(contentFilterObjectType),
+		},
+		guardrailResourceModel{
+			EnforceZDR:            types.BoolValue(true),
+			ContentFilterBuiltins: emptyContentFilterBuiltinsList(),
+			ContentFilters:        emptyContentFiltersList(),
+		},
+	)
+
+	if prior.EnforceZDR.IsNull() || prior.EnforceZDR.IsUnknown() || !prior.EnforceZDR.ValueBool() {
+		t.Fatalf("enforce_zdr prior = %s, want state true fallback", prior.EnforceZDR.String())
+	}
+	if prior.ContentFilterBuiltins.IsNull() || len(prior.ContentFilterBuiltins.Elements()) != 0 {
+		t.Fatalf("content_filter_builtins prior = %s, want state empty-list fallback", prior.ContentFilterBuiltins.String())
+	}
+	if prior.ContentFilters.IsNull() || len(prior.ContentFilters.Elements()) != 0 {
+		t.Fatalf("content_filters prior = %s, want state empty-list fallback", prior.ContentFilters.String())
+	}
+}
+
+func TestGuardrailUpdateFlattenPriorPrefersKnownPlanValues(t *testing.T) {
+	t.Parallel()
+
+	prior := guardrailUpdateFlattenPrior(
+		guardrailResourceModel{
+			EnforceZDR:            types.BoolValue(false),
+			ContentFilterBuiltins: types.ListNull(contentFilterBuiltinObjectType),
+			ContentFilters:        types.ListNull(contentFilterObjectType),
+		},
+		guardrailResourceModel{
+			EnforceZDR:            types.BoolValue(true),
+			ContentFilterBuiltins: emptyContentFilterBuiltinsList(),
+			ContentFilters:        emptyContentFiltersList(),
+		},
+	)
+
+	if prior.EnforceZDR.IsNull() || prior.EnforceZDR.IsUnknown() || prior.EnforceZDR.ValueBool() {
+		t.Fatalf("enforce_zdr prior = %s, want known plan false", prior.EnforceZDR.String())
+	}
+	if !prior.ContentFilterBuiltins.IsNull() {
+		t.Fatalf("content_filter_builtins prior = %s, want known plan null", prior.ContentFilterBuiltins.String())
+	}
+	if !prior.ContentFilters.IsNull() {
+		t.Fatalf("content_filters prior = %s, want known plan null", prior.ContentFilters.String())
+	}
+}
+
 func TestBuildGuardrailUpsertRequestOfficialFields(t *testing.T) {
 	t.Parallel()
 
@@ -334,6 +388,48 @@ func TestBuildGuardrailUpsertRequestOfficialFields(t *testing.T) {
 	builtinPayload := decoded["content_filter_builtins"].([]any)[0].(map[string]any)
 	if _, ok := builtinPayload["label"]; ok {
 		t.Fatalf("builtin request payload included deprecated label: %s", payload)
+	}
+}
+
+func TestBuildGuardrailUpsertRequestAllowsUnknownComputedNestedFields(t *testing.T) {
+	t.Parallel()
+
+	request, diags := buildGuardrailUpsertRequest(
+		context.Background(),
+		guardrailResourceModel{Name: types.StringValue("prod")},
+		guardrailResourceModel{
+			ContentFilterBuiltins: mustList(t, contentFilterBuiltinObjectType,
+				mustObject(t, contentFilterBuiltinAttrTypes, map[string]attr.Value{
+					"slug":       types.StringValue("email"),
+					"action":     types.StringValue("redact"),
+					"label":      types.StringUnknown(),
+					"scan_scope": types.StringUnknown(),
+				}),
+			),
+			ContentFilters: mustList(t, contentFilterObjectType,
+				mustObject(t, contentFilterAttrTypes, map[string]attr.Value{
+					"pattern": types.StringValue("SECRET_[A-Z0-9]+"),
+					"action":  types.StringValue("redact"),
+					"label":   types.StringUnknown(),
+				}),
+			),
+		},
+		false,
+	)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics for unknown computed nested fields: %s", diags)
+	}
+	if request.ContentFilterBuiltins == nil || len(*request.ContentFilterBuiltins) != 1 {
+		t.Fatalf("content_filter_builtins = %#v, want one entry", request.ContentFilterBuiltins)
+	}
+	if got := (*request.ContentFilterBuiltins)[0]; got.Slug != "email" || got.Action != "redact" || got.ScanScope != nil {
+		t.Fatalf("builtin request entry = %#v, want required fields with unknown optional fields omitted", got)
+	}
+	if request.ContentFilters == nil || len(*request.ContentFilters) != 1 {
+		t.Fatalf("content_filters = %#v, want one entry", request.ContentFilters)
+	}
+	if got := (*request.ContentFilters)[0]; got.Pattern != "SECRET_[A-Z0-9]+" || got.Action != "redact" || got.Label != nil {
+		t.Fatalf("custom filter request entry = %#v, want required fields with unknown optional fields omitted", got)
 	}
 }
 
