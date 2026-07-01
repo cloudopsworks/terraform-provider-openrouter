@@ -1,0 +1,37 @@
+##
+# (c) 2021-2026
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: auto-assign
+on:
+  pull_request: 
+    types: 
+      - opened
+      - reopened
+  issues:
+    types:
+      - opened
+      - reopened
+
+# The action assigns PR reviewers on pull_request events and issue authors on issues events.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  assignments:
+    runs-on: ubuntu-latest
+    steps:
+      # This action checks if the repository is public or private. If the repository is public, it will run the auto-assign action.
+      - uses: cloudopsworks/blueprints/cd/tasks/repo/check@v5.10
+        id: repo_check
+      - uses: cloudopsworks/auto-assign@v3.0.2
+        if: steps.repo_check.outputs.is_public == 'true'
+        with:
+          repo-token: ${{ secrets.BOT_TOKEN }}
+          configuration-path: '.cloudopsworks/auto-assign.yml'

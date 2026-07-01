@@ -168,19 +168,19 @@ jobs:
           azure_rg: ${{ needs.preload.outputs.deploy_azure_rg != '' && needs.preload.outputs.deploy_azure_rg || vars.DEPLOYMENT_AZURE_RESOURCE_GROUP }}
           terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
           release_name: ${{ needs.preload.outputs.release_name }}
-          release_version: ${{ inputs.semver }}
+          release_version: 'v1'
           project_key: ${{ needs.preload.outputs.project_key }}
           deployment_name: ${{ inputs.unlockDeploymentName }}
           environment: ${{ needs.preload.outputs.environment }}
 
       - name: Unlock API GCP
-        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        if: ${{ needs.preload.outputs.cloud == 'GCP' && inputs.target == 'api' }}
         uses: ./bp/cd/deploy/api/gcp
         with:
           unlock: true
           lock_id: ${{ inputs.lockId }}
           qualifier: ${{ inputs.qualifier }}
-          cloud_type: ${{ inputs.cloud_type }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
           token: ${{ secrets.BOT_TOKEN }}
           gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
           gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
@@ -195,13 +195,13 @@ jobs:
           api_lock: ${{ inputs.api_lock }}
 
       - name: Unlock Application Deploy GCP
-        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        if: ${{ needs.preload.outputs.cloud == 'GCP' && inputs.target == 'app' }}
         uses: ./bp/cd/deploy/app/gcp
         with:
           unlock: true
           lock_id: ${{ inputs.lockId }}
           qualifier: ${{ inputs.qualifier }}
-          cloud_type: ${{ inputs.cloud_type }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
           token: ${{ secrets.BOT_TOKEN }}
           gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
           gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
@@ -209,7 +209,7 @@ jobs:
           gcp_region: ${{ needs.preload.outputs.gcp_region != '' && needs.preload.outputs.gcp_region || vars.DEPLOYMENT_GCP_REGION }}
           terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
           release_name: ${{ needs.preload.outputs.release_name }}
-          release_version: ${{ inputs.semver }}
+          release_version: 'v1'
           project_key: ${{ needs.preload.outputs.project_key }}
           deployment_name: ${{ inputs.unlockDeploymentName }}
           environment: ${{ needs.preload.outputs.environment }}

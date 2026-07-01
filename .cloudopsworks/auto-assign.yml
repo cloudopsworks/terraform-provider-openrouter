@@ -1,0 +1,14 @@
+# Pull requests only: request reviewers on opened or reopened pull requests.
+addReviewers: true
+
+# Pull requests and issues: assign the PR creator or issue author.
+addAssignees: author
+
+# A list of reviewers to be added to pull requests (GitHub user name)
+# Teams are not supported (wontfix): https://github.com/kentaro-m/auto-assign/issues/39
+reviewers:
+  - cloudopsworks-bot
+
+# A number of reviewers added to the pull request
+# Set 0 to add all the reviewers (default: 0)
+numberOfReviewers: 0

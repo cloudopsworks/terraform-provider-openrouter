@@ -90,7 +90,7 @@ jobs:
           cloud: ${{ needs.preload.outputs.cloud }}
 
       - name: Destroy API AWS
-        if: ${{ steps.config.outputs.cloud == 'AWS' && (inputs.target == 'api' || inputs.target == 'BOTH') }}
+        if: ${{ needs.preload.outputs.cloud == 'AWS' && (inputs.target == 'api' || inputs.target == 'BOTH') }}
         uses: ./bp/cd/deploy/api/aws
         with:
           destroy: true
@@ -155,18 +155,18 @@ jobs:
           azure_rg: ${{ needs.preload.outputs.deploy_azure_rg != '' && needs.preload.outputs.deploy_azure_rg || vars.DEPLOYMENT_AZURE_RESOURCE_GROUP }}
           terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
           release_name: ${{ needs.preload.outputs.release_name }}
-          release_version: ${{ inputs.semver }}
+          release_version: 'v1'
           project_key: ${{ needs.preload.outputs.project_key }}
           deployment_name: ${{ inputs.destroyedDeploymentName }}
           environment: ${{ needs.preload.outputs.environment }}
 
       - name: Destroy API GCP
-        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        if: ${{ needs.preload.outputs.cloud == 'GCP' && (inputs.target == 'api' || inputs.target == 'BOTH') }}
         uses: ./bp/cd/deploy/api/gcp
         with:
           destroy: true
           qualifier: ${{ inputs.qualifier }}
-          cloud_type: ${{ inputs.cloud_type }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
           token: ${{ secrets.BOT_TOKEN }}
           gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
           gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
@@ -180,12 +180,12 @@ jobs:
           environment: ${{ needs.preload.outputs.environment }}
 
       - name: Destroy Application Deploy GCP
-        if: ${{ needs.preload.outputs.cloud == 'GCP' }}
+        if: ${{ needs.preload.outputs.cloud == 'GCP' && (inputs.target == 'app' || inputs.target == 'BOTH') }}
         uses: ./bp/cd/deploy/app/gcp
         with:
           destroy: true
           qualifier: ${{ inputs.qualifier }}
-          cloud_type: ${{ inputs.cloud_type }}
+          cloud_type: ${{ needs.preload.outputs.cloud_type }}
           token: ${{ secrets.BOT_TOKEN }}
           gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
           gcp_impersonate_sa: ${{ needs.preload.outputs.deploy_gcp_impersonate_sa != '' && needs.preload.outputs.deploy_gcp_impersonate_sa || vars.DEPLOYMENT_GCP_IMPERSONATE_SA }}
@@ -193,7 +193,7 @@ jobs:
           gcp_region: ${{ needs.preload.outputs.gcp_region != '' && needs.preload.outputs.gcp_region || vars.DEPLOYMENT_GCP_REGION }}
           terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
           release_name: ${{ needs.preload.outputs.release_name }}
-          release_version: ${{ inputs.semver }}
+          release_version: 'v1'
           project_key: ${{ needs.preload.outputs.project_key }}
           deployment_name: ${{ inputs.destroyedDeploymentName }}
           environment: ${{ needs.preload.outputs.environment }}

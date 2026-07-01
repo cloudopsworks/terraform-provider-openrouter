@@ -1,0 +1,42 @@
+##
+# (c) 2021-2026
+#     Cloud Ops Works LLC - https://cloudops.works/
+#     Find us on:
+#       GitHub: https://github.com/cloudopsworks
+#       WebSite: https://cloudops.works
+#     Distributed Under Apache v2.0 License
+#
+name: auto-greet
+
+on: 
+  - pull_request
+  - issues
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      # This action checks if the repository is public or private. If the repository is public, it will run the auto-greet action.
+      - uses: cloudopsworks/blueprints/cd/tasks/repo/check@v5.10
+        id: repo_check
+      - uses: actions/first-interaction@v3
+        if: steps.repo_check.outputs.is_public == 'true'
+        with:
+          repo_token: ${{ secrets.BOT_TOKEN }}
+          issue_message: |-
+            Thank you for reporting the issue! If you haven't already [joined our slack community](https://slack.cloudops.works), then we invite you to do so.
+  
+            This is a great place to get help and ask questions from our AMAZING community.  
+  
+            [![Slack Community](https://slack.cloudops.works/badge.svg)](https://slack.cloudops.works)
+          pr_message: |-
+            Thank you for submitting this PR! If you haven't already [joined our slack community](https://slack.cloudops.works), then we invite you to do so.
+  
+            We receive an overwhelming number of contributions. By joining our slack, we'll be able to review your PR faster.
+  
+            [![Slack Community](https://slack.cloudops.works/badge.svg)](https://slack.cloudops.works)
