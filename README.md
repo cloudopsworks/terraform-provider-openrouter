@@ -94,8 +94,56 @@ You can also set `OPENROUTER_API_KEY` instead of `api_key`.
 
 Optional arguments:
 
-- `api_key` - OpenRouter management API key.
+- `api_key` - OpenRouter management API key. Highest-precedence key source.
 - `base_url` - Override the management API base URL. Defaults to `https://openrouter.ai/api/v1`.
+- `aws_secrets_manager` - Read provider settings from AWS Secrets Manager using the default AWS credential chain, with optional STS AssumeRole support.
+- `gcp_secret_manager` - Read provider settings from Google Secret Manager using Application Default Credentials, with optional service-account impersonation.
+- `azure_key_vault` - Read the management API key from Azure Key Vault using `DefaultAzureCredential`.
+
+Authentication is resolved in this order: explicit provider values, direct
+environment values, then exactly one configured or discovered cloud secret
+source. Direct values override fields from a secret, and a direct key causes
+cloud sources to be ignored completely. Missing, ambiguous, inaccessible,
+malformed, or empty cloud sources fail provider configuration when cloud
+resolution is required.
+
+```hcl
+provider "openrouter" {
+  aws_secrets_manager = {
+    region        = "us-east-1"
+    secret_id     = "prod/openrouter/management"
+    version_stage = "AWSCURRENT"
+    json_key      = "api_key"
+  }
+}
+```
+
+```hcl
+provider "openrouter" {
+  gcp_secret_manager = {
+    project_id = "platform-prod"
+    secret_id  = "openrouter-management-key"
+    version    = "latest"
+    json_key   = "api_key"
+  }
+}
+```
+
+```hcl
+provider "openrouter" {
+  azure_key_vault = {
+    vault_url   = "https://platform-prod.vault.azure.net/"
+    secret_name = "openrouter-management-key"
+    json_key    = "api_key"
+  }
+}
+```
+
+Cloud source discovery is also available through
+`OPENROUTER_AWS_SECRETS_MANAGER_*` and
+`OPENROUTER_GCP_SECRET_MANAGER_*` environment variables. Secret values may be
+plaintext keys or JSON objects containing `api_key`/`openrouter_api_key` and
+optional `base_url`; use `json_key` for nested JSON values.
 
 ## Govern a team's access (not just a bare key)
 

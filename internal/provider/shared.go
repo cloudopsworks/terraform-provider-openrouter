@@ -48,6 +48,13 @@ func stringValueOrNil(v types.String) *string {
 	return &value
 }
 
+func int64Value(value types.Int64) int64 {
+	if value.IsNull() || value.IsUnknown() {
+		return 0
+	}
+	return value.ValueInt64()
+}
+
 func float64ValueOrNil(v types.Float64) *float64 {
 	if v.IsNull() || v.IsUnknown() {
 		return nil
