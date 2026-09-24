@@ -65,10 +65,11 @@ jobs:
           bot_email: ${{ vars.BOT_EMAIL }}
 
   preview-destroy:
+    name: Destroy Preview Environment
     needs:
       - preload
-    if: needs.code-build.outputs.has_preview == 'true'
-    runs-on: ${{ needs.code-build.outputs.runner_set }}
+    if: needs.preload.outputs.has_preview == 'true'
+    runs-on: ${{ needs.preload.outputs.runner_set }}
     steps:
       - name: Checkout w/Blueprint
         uses: cloudopsworks/blueprints/cd/checkout@v5.10
@@ -94,7 +95,7 @@ jobs:
           aws_secret_access_key: ${{ secrets.BUILD_AWS_SECRET_ACCESS_KEY }}
           terraform_state_conf: ${{ vars.DEPLOYMENT_STATE_CONF }}
           release_name: ${{ steps.config.outputs.release_name }}
-          release_version: ${{ needs.code-build.outputs.semver }}
+          release_version: "v0"
           project_key: ${{ steps.config.outputs.project_key }}
           deployment_name: ${{ steps.config.outputs.deployment_name }}
           environment: ${{ steps.config.outputs.environment }}
@@ -114,7 +115,7 @@ jobs:
           azure_rg: ${{ steps.config.outputs.preview_azure_rg != '' && steps.config.outputs.preview_azure_rg || vars.PREVIEW_AZURE_RESOURCE_GROUP }}
           terraform_state_conf: ${{ inputs.terraform_state_conf }}
           release_name: ${{ steps.config.outputs.release_name }}
-          release_version: ${{ inputs.semver }}
+          release_version: "v0"
           project_key: ${{ steps.config.outputs.project_key }}
           deployment_name: ${{ inputs.deployment_name }}
           environment: ${{ steps.config.outputs.environment }}
@@ -135,7 +136,7 @@ jobs:
           gcp_region: ${{ vars.PREVIEW_GCP_REGION }}
           terraform_state_conf: ${{ inputs.terraform_state_conf }}
           release_name: ${{ steps.config.outputs.release_name }}
-          release_version: ${{ needs.code-build.outputs.semver }}
+          release_version: "v0"
           project_key: ${{ steps.config.outputs.project_key }}
           project_owner: ${{ steps.config.outputs.project_owner }}
           deployment_name: ${{ steps.config.outputs.deployment_name }}
@@ -146,6 +147,7 @@ jobs:
           rancher_project_id: ${{ vars.PREVIEW_RANCHER_PROJECT_ID }}
 
   branch_deletion:
+    name: Delete Branch
     if: ${{ ! cancelled() }}
     needs:
       - preload
