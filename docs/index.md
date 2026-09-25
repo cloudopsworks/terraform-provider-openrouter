@@ -2,6 +2,13 @@
 
 Use the OpenRouter provider to manage OpenRouter management-plane resources with Terraform or OpenTofu.
 
+## Requirements
+
+- Terraform `>= 1.11` or OpenTofu `>= 1.11`
+- Go `>= 1.26.3` for development
+
+The provider advertises the write-only `openrouter_byok_key.key_wo` schema globally. Terraform and OpenTofu must support write-only arguments even when a configuration does not create a BYOK credential.
+
 ## Example Usage
 
 ```hcl
@@ -137,6 +144,9 @@ Set `json_key` for a nested JSON path such as `openrouter.api_key`.
 - `openrouter_api_key`
 - `openrouter_workspace`
 - `openrouter_guardrail`
+- `openrouter_guardrail_key_assignment`
+- `openrouter_workspace_budget`
+- `openrouter_byok_key`
 
 ## Supported Data Sources
 
@@ -146,3 +156,12 @@ Set `json_key` for a nested JSON path such as `openrouter.api_key`.
 - `openrouter_guardrails`
 - `openrouter_organization`
 - `openrouter_providers`
+- `openrouter_byok_keys`
+
+## Management notes
+
+- Use `openrouter_guardrail_key_assignment` to associate a key hash with a guardrail; one Terraform resource should own each key assignment.
+- Use `openrouter_workspace_budget` for a workspace interval budget. Its identity preserves the configured `<workspace_ref>/<interval>`; OpenRouter accepts a UUID or slug, though a UUID is recommended for stability.
+- `openrouter_byok_key` uses a provider-wide write-only schema, so Terraform/OpenTofu `>= 1.11` is required; raw provider credentials are never returned in state.
+
+See [resources](resources/) and [data sources](data-sources/) for feature-specific lifecycle and import guidance.

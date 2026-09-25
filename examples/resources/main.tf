@@ -49,3 +49,26 @@ resource "openrouter_guardrail" "team" {
     }
   ]
 }
+
+# The API key ID is its non-secret hash, which is required for the assignment.
+resource "openrouter_guardrail_key_assignment" "service" {
+  guardrail_id = openrouter_guardrail.team.id
+  key_hash     = openrouter_api_key.service.id
+}
+
+resource "openrouter_workspace_budget" "team_monthly" {
+  workspace_id = openrouter_workspace.team.id
+  interval     = "monthly"
+  limit_usd    = 200
+}
+
+# Requires Terraform >= 1.11. The raw credential remains write-only.
+resource "openrouter_byok_key" "openai" {
+  provider_slug  = "openai"
+  workspace_id   = openrouter_workspace.team.id
+  key_wo         = var.openai_api_key
+  key_wo_version = 1
+
+  name           = "engineering-openai"
+  allowed_models = ["openai/gpt-4o"]
+}

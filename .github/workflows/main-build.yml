@@ -121,6 +121,7 @@ jobs:
           observability_agent: ${{ steps.config.outputs.observability_agent }}
 
   deploy-container:
+    name: Deploy Container
     needs:
       - code-build
     if: |
@@ -233,6 +234,7 @@ jobs:
       dtrack_token: ${{ secrets.DEPENDENCYTRACK_TOKEN }}
 
   deploy:
+    name: Deploy Application
     needs:
       - code-build
       - deploy-container
@@ -269,6 +271,7 @@ jobs:
       gcp_credentials: ${{ secrets.DEPLOYMENT_GCP_CREDENTIALS }}
 
   deploy-blue-green:
+    name: Deploy Blue-Green
     needs:
       - code-build
       - deploy-container

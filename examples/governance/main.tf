@@ -66,6 +66,22 @@ resource "openrouter_api_key" "team" {
   limit_reset           = "monthly"
   include_byok_in_limit = true
 
-  # Ensure the guardrail exists before the key is issued.
-  depends_on = [openrouter_guardrail.team]
+}
+
+# Each key is explicitly assigned to its team's guardrail. The API key ID is
+# the non-secret key hash required by the assignment API.
+resource "openrouter_guardrail_key_assignment" "team" {
+  for_each = var.teams
+
+  guardrail_id = openrouter_guardrail.team[each.key].id
+  key_hash     = openrouter_api_key.team[each.key].id
+}
+
+# Apply wider intervals before narrower intervals when adding several budgets.
+resource "openrouter_workspace_budget" "team_monthly" {
+  for_each = var.teams
+
+  workspace_id = openrouter_workspace.team[each.key].id
+  interval     = "monthly"
+  limit_usd    = each.value.monthly_limit_usd
 }
