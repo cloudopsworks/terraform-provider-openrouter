@@ -24,7 +24,12 @@ patch-version-bump-message: "\\+semver:\\s?(fix|patch|hotfix)"
 no-bump-message: "\\+semver:\\s?(none|skip)"
 tag-pre-release-weight: 60000
 commit-date-format: yyyy-MM-dd
-merge-message-formats: {}
+merge-message-formats:
+  conventional-commits-merge: "^(?<type>build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\((?<scope>.*)\\))?(!)?: Merge pull request #(?<PullRequestNumber>\\d+) from (?<SourceBranch>.*)"
+  direct-commits-merge: "^Merge pull request #(?<PullRequestNumber>\\d+) from (?<SourceBranch>.*)"
+  feat-finish: "^chore: Feature Finish from (?<SourceBranch>.*).*"
+  hotfix-finish: "^chore: Hotfix Release from (?<SourceBranch>.*).*"
+  release-finish: "^chore: Release v\\d+\\.\\d+\\.\\d+.* from (?<SourceBranch>.*).*"
 update-build-number: true
 semantic-version-format: Strict
 strategies:
@@ -39,7 +44,7 @@ branches:
     label: ''
     increment: Patch
     prevent-increment:
-      of-merged-branch: true
+      of-merged-branch: false
     track-merge-target: false
     track-merge-message: true
     regex: "^master$|^main$"
@@ -59,7 +64,7 @@ branches:
       when-current-commit-tagged: false
     track-merge-target: false
     track-merge-message: true
-    regex: "^releases?[\\/-](?<BranchName>.+)"
+    regex: "^releases?[\\/-](?<BranchName>[vV]?\\d+\\.\\d+\\.\\d+.*)"
     source-branches:
       - main
     is-source-branch-for: []
@@ -69,7 +74,7 @@ branches:
     pre-release-weight: 30000
   feature:
     mode: ManualDeployment
-    label: "{BranchName}"
+    label: alpha
     increment: Inherit
     prevent-increment:
       when-current-commit-tagged: false
@@ -96,6 +101,20 @@ branches:
       - feature
     is-source-branch-for: []
     pre-release-weight: 30000
+  hotfix:
+    mode: ManualDeployment
+    label: beta
+    increment: Inherit
+    prevent-increment:
+      when-current-commit-tagged: false
+    regex: "^(hotfix|fix)(es)?[\\/-](?<BranchName>[vV]?\\d+\\.\\d+\\.\\d+.*)"
+    source-branches:
+      - main
+      - support
+    is-source-branch-for: []
+    is-release-branch: true
+    is-main-branch: false
+    pre-release-weight: 30000
   unknown:
     mode: ManualDeployment
     label: "{BranchName}"
@@ -114,4 +133,3 @@ branches:
 ignore:
   sha: []
   paths: []
-
