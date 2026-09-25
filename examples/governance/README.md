@@ -10,7 +10,10 @@ For each team in `var.teams` it provisions, as code:
 - an `openrouter_guardrail` — a monthly USD cap, allowed providers, and
   zero-data-retention enforcement, scoped to that workspace,
 - an `openrouter_api_key` — a spend-limited, monthly-reset key scoped to the
-  workspace.
+  workspace,
+- an `openrouter_guardrail_key_assignment` — the explicit association between
+  that key hash and its guardrail,
+- an `openrouter_workspace_budget` — an independent monthly workspace budget.
 
 Adding a team is one map entry — no new resource blocks.
 
@@ -41,4 +44,9 @@ teams = {
 
 - The API key secret is only returned by OpenRouter on create; it is exported as
   the sensitive `api_keys` output.
+- Each key hash has one assignment owner. Do not assign the same key in another
+  Terraform resource or concurrently outside Terraform.
+- The budget resource accepts and preserves a workspace UUID or slug in its
+  identity; prefer the UUID for stability. If adding daily, weekly, monthly,
+  and lifetime budgets, apply them from widest to narrowest.
 - Argument names here match the provider docs under `../../docs/resources/`.
