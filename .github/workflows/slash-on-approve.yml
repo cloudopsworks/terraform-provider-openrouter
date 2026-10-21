@@ -24,6 +24,7 @@ permissions:
 
 jobs:
   command:
+    name: Process Approval Command
     runs-on: ubuntu-latest
     steps:
       - name: Approve Command

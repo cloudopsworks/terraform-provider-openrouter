@@ -488,6 +488,9 @@ func (p *openRouterProvider) Resources(_ context.Context) []func() resource.Reso
 		NewAPIKeyResource,
 		NewWorkspaceResource,
 		NewGuardrailResource,
+		NewGuardrailKeyAssignmentResource,
+		NewWorkspaceBudgetResource,
+		NewBYOKKeyResource,
 	}
 }
 
@@ -499,5 +502,6 @@ func (p *openRouterProvider) DataSources(_ context.Context) []func() datasource.
 		NewGuardrailsDataSource,
 		NewOrganizationDataSource,
 		NewProvidersDataSource,
+		NewBYOKKeysDataSource,
 	}
 }

@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   assignments:
+    name: Assign Pull Request
     runs-on: ubuntu-latest
     steps:
       # This action checks if the repository is public or private. If the repository is public, it will run the auto-assign action.

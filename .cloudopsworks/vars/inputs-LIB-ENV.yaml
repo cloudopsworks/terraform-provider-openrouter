@@ -1,5 +1,6 @@
+# This file contains the input variables for the LIB-ENV workflow
+# Agents: cloud=aws|gcp|azure, cloud_type=none
 environment: "dev|uat|prod|demo"
-# This file contains the environment variables for the Kubernetes deployment
 #runner_set: "RUNNER-ENV" # Optional: when using self-hosted runners
 #
 # The following are for cloud specific configurations

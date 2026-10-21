@@ -1,19 +1,34 @@
+# This file contains the global variables that will be used across all pipelines,
+# these variables can be overwritten by the pipeline specific variables defined in .cloudopsworks/vars/inputs-<pipeline>.yaml
 organization_name: "CloudOpsWorks"
 organization_unit: "Providers"
 environment_name: "terraform-provider-openrouter"
-repository_owner: "cloudopsworks"
+repository_owner: "cloudopsworks" # Required
 #
 ## Default Go version is 1.25, uncomment to build with different version,
 ## Dist is the OS distribution, arch is the architecture
 ## Image variant should be used for the specific version of OS image to run
 golang:
   main_file: .
+#  package_name: sample-cli # Optional, defaults to the go.mod module name or repository name
   version: 1.26
 #  dist: linux
 #  arch: amd64
 #  image_variant: alpine:3.21
-#  disable_cgo: true # uncomment to disable CGO (pure golang build), useful on some cases
-  goreleaser: true # uncomment to enable goreleaser, the tool is disabled by default
+#  disable_cgo: true     # uncomment to disable CGO (pure golang build), useful on some cases
+#  goreleaser: true # uncomment to enable goreleaser, the tool is disabled by default
+  goreleaser:           # New way to enable goreleaser, the tool is disabled by default.
+    enabled: true       # uncomment to enable goreleaser, the tool is disabled by default, it is recommended to put cloud_type to `none` in case of using GoReleaser, no deployment will be made.
+#    chocolatey: true    # uncomment to enable chocolatey package generation, if enabled it will run goreleaser on a windows runner, requires to have windows.goreleaser.yml file in the root of the repository, disabled by default.
+#    macos: true         # uncomment to enable macOS package generation, if enabled it will run goreleaser on a macOS runner, requires to have macos.goreleaser.yml file in the root of the repository, disabled by default.
+#
+# Set GitHub Pages processing to true if want to enable, the tool is disabled by default, all docs are expected to be under the `docs` folder
+# The build script expects that docs are built into the `docs-pages` folder, if you want to change this behavior, configure accordingly.
+# Docs are expected to be in Jekyll format only.
+#pages:
+#  enabled: true
+#  docs_path: "docs"
+#  pages_path: "docs-pages"
 #
 # Set Snyk processing to true if want to enable, the tool is disabled by default
 #snyk:

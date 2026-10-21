@@ -19,6 +19,7 @@ permissions:
 
 jobs:
   comment:
+    name: Post Greeting Comment
     runs-on: ubuntu-latest
     steps:
       # This action checks if the repository is public or private. If the repository is public, it will run the auto-greet action.

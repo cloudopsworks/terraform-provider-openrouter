@@ -13,9 +13,10 @@
 # Terraform Provider OpenRouter [![Latest Release](https://img.shields.io/github/release/cloudopsworks/terraform-provider-openrouter.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-provider-openrouter/releases/latest) [![Terraform Registry](https://img.shields.io/badge/registry-cloudopsworks%2Fopenrouter-844FBA?style=for-the-badge&logo=terraform)](https://registry.terraform.io/providers/cloudopsworks/openrouter/latest) [![OpenTofu](https://img.shields.io/badge/OpenTofu-compatible-FFDA18?style=for-the-badge&logo=opentofu&logoColor=black)](https://opentofu.org) [![Go Report Card](https://goreportcard.com/badge/github.com/cloudopsworks/terraform-provider-openrouter?style=for-the-badge)](https://goreportcard.com/report/github.com/cloudopsworks/terraform-provider-openrouter) [![Last Updated](https://img.shields.io/github/last-commit/cloudopsworks/terraform-provider-openrouter.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-provider-openrouter/commits) [![Stars](https://img.shields.io/github/stars/cloudopsworks/terraform-provider-openrouter.svg?style=for-the-badge)](https://github.com/cloudopsworks/terraform-provider-openrouter/stargazers)
 
 
-Govern your entire OpenRouter organization as code — workspaces, guardrails,
-spend limits, and API keys. A Terraform/OpenTofu provider for the OpenRouter
-management API, not just an API-key wrapper.
+Manage OpenRouter management-plane controls as code: workspaces, API keys,
+guardrails, guardrail-key assignments, workspace budgets, and BYOK credential
+metadata. This Terraform/OpenTofu provider focuses on resources with a clear,
+safe infrastructure lifecycle.
 
 
 ---
@@ -43,31 +44,29 @@ It's 100% Open Source and licensed under the [APACHE2](LICENSE).
 
 ## Introduction
 
-OpenRouter now routes 20+ trillion tokens per week and has become shared
-infrastructure for most AI teams. Once it is a shared dependency, you need to
-manage it like one: scoped keys, spend caps, guardrails, and organization
-membership — versioned, reviewed in pull requests, and reproducible across
-environments.
+Manage the OpenRouter controls your team can review and reproduce: scoped API
+keys, workspaces, guardrails, key-to-guardrail assignments, workspace budgets,
+and BYOK credential metadata.
 
-This is the only Terraform/OpenTofu provider that manages OpenRouter as a
-governed platform rather than a bare key vault.
+### Managed capabilities
 
-### Why this provider
-
-| Capability | `cloudopsworks/openrouter` | Key-only providers |
-|---|:--:|:--:|
-| API keys (CRUD, spend / time limits) | ✅ | ✅ |
-| Workspaces | ✅ | ❌ |
-| Guardrails | ✅ | ❌ |
-| Organization / members | ✅ | ❌ |
-| Providers data source | ✅ | ❌ |
-| OpenTofu support | ✅ | rarely |
+| Area | Terraform support |
+| --- | --- |
+| API keys | `openrouter_api_key` |
+| Workspaces | `openrouter_workspace` |
+| Guardrails | `openrouter_guardrail` |
+| Guardrail-key assignments | `openrouter_guardrail_key_assignment` |
+| Workspace budgets | `openrouter_workspace_budget` |
+| BYOK credentials | `openrouter_byok_key` (write-only credential) |
 
 ### Resources
 
 - `openrouter_api_key` — keys with spend and time limits
 - `openrouter_workspace`
 - `openrouter_guardrail`
+- `openrouter_guardrail_key_assignment`
+- `openrouter_workspace_budget`
+- `openrouter_byok_key`
 
 ### Data sources
 
@@ -75,8 +74,9 @@ governed platform rather than a bare key vault.
 - `openrouter_workspaces`
 - `openrouter_api_keys`
 - `openrouter_guardrails`
-- `openrouter_organization`
+- `openrouter_organization` — reads organization information; it does not manage members
 - `openrouter_providers`
+- `openrouter_byok_keys`
 
 ## Usage
 
@@ -148,7 +148,7 @@ optional `base_url`; use `json_key` for nested JSON values.
 ## Govern a team's access (not just a bare key)
 
 ```hcl
-# Scope a workspace, attach a guardrail, then issue a spend-capped key.
+# Scope a workspace, guard an API key, and set a workspace budget.
 resource "openrouter_workspace" "search_team" {
   name = "Search Team"
   slug = "search-team"
@@ -180,6 +180,17 @@ resource "openrouter_api_key" "search_team" {
   limit        = 200 # USD spend cap
   limit_reset  = "monthly"
 }
+
+resource "openrouter_guardrail_key_assignment" "search_team" {
+  guardrail_id = openrouter_guardrail.search_team.id
+  key_hash     = openrouter_api_key.search_team.id
+}
+
+resource "openrouter_workspace_budget" "search_team_monthly" {
+  workspace_id = openrouter_workspace.search_team.id
+  interval     = "monthly"
+  limit_usd    = 200
+}
 ```
 
 See [`examples/governance/`](examples/governance/) for a multi-team version that
@@ -204,10 +215,14 @@ make testacc
 
 ## Requirements
 
-- Go `1.25+`
-- Terraform `>= 1.7`
-- OpenTofu `>= 1.7`
+- Go `>= 1.26.3` for development
+- Terraform `>= 1.11`
+- OpenTofu `>= 1.11`
 - OpenRouter management API key
+
+The provider globally advertises a write-only BYOK credential argument. Terraform
+and OpenTofu must support write-only arguments even if a configuration does not
+use `openrouter_byok_key`; this sets the provider-wide `>= 1.11` minimum.
 
 ## Installation
 
@@ -252,7 +267,8 @@ See:
 ## Known limitations in v1
 
 - OpenRouter returns the actual API key secret only on create. The provider exposes it as `key` and marks it sensitive, but it can still exist in state.
-- `openrouter_organization` is implemented from the documented organization-members endpoint.
+- The provider requires Terraform/OpenTofu `>= 1.11` because it advertises the write-only `openrouter_byok_key.key_wo` argument globally. Its raw credential is never stored in state and cannot be drift-detected.
+- `openrouter_organization` is a read-only data source; the provider does not manage organization members.
 
 ## Registry publishing
 

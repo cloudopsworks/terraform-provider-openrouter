@@ -301,6 +301,18 @@ func (c *Client) ListProviders(ctx context.Context) ([]ProviderInfo, error) {
 }
 
 func (c *Client) do(ctx context.Context, method, path string, query url.Values, body any, out any) error {
+	return c.doWithSensitivity(ctx, method, path, query, body, out, false)
+}
+
+// doSensitive sends a request whose response may repeat write-only request
+// material (for example a provider API key). Unlike do, it never logs or
+// returns an upstream error body or message. Keep this private so callers must
+// consciously opt into the stricter error contract.
+func (c *Client) doSensitive(ctx context.Context, method, path string, query url.Values, body any, out any) error {
+	return c.doWithSensitivity(ctx, method, path, query, body, out, true)
+}
+
+func (c *Client) doWithSensitivity(ctx context.Context, method, path string, query url.Values, body any, out any, sensitive bool) error {
 	start := time.Now()
 	traceCtx := tflog.SetField(ctx, "openrouter_base_url", c.baseURL)
 	traceCtx = tflog.NewSubsystem(traceCtx, "openrouter_client", tflog.WithRootFields())
@@ -315,6 +327,13 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	if body != nil {
 		payload, err := json.Marshal(body)
 		if err != nil {
+			if sensitive {
+				tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to marshal OpenRouter sensitive request body", map[string]interface{}{
+					"http_method": method,
+					"http_path":   path,
+				})
+				return fmt.Errorf("failed to encode OpenRouter sensitive request")
+			}
 			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to marshal OpenRouter API request body", map[string]interface{}{
 				"http_method": method,
 				"http_path":   path,
@@ -327,6 +346,13 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to build OpenRouter sensitive request URL", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+			})
+			return fmt.Errorf("failed to build OpenRouter sensitive request")
+		}
 		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to build OpenRouter API request URL", map[string]interface{}{
 			"http_method": method,
 			"http_path":   path,
@@ -340,6 +366,13 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), bodyReader)
 	if err != nil {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to create OpenRouter sensitive request", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+			})
+			return fmt.Errorf("failed to create OpenRouter sensitive request")
+		}
 		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to create OpenRouter API request", map[string]interface{}{
 			"http_method": method,
 			"http_path":   path,
@@ -358,6 +391,14 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter sensitive request failed", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+				"duration_ms": time.Since(start).Milliseconds(),
+			})
+			return fmt.Errorf("OpenRouter sensitive request failed")
+		}
 		tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API request failed", map[string]interface{}{
 			"http_method": method,
 			"http_path":   path,
@@ -370,6 +411,15 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to read OpenRouter sensitive response", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+				"status_code": resp.StatusCode,
+				"duration_ms": time.Since(start).Milliseconds(),
+			})
+			return fmt.Errorf("failed to read OpenRouter sensitive response")
+		}
 		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to read OpenRouter API response", map[string]interface{}{
 			"http_method": method,
 			"http_path":   path,
@@ -389,6 +439,15 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	})
 
 	if resp.StatusCode >= 400 {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API returned an error response for sensitive request", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+				"status_code": resp.StatusCode,
+				"duration_ms": time.Since(start).Milliseconds(),
+			})
+			return fmt.Errorf("openrouter API error (%d) for sensitive request", resp.StatusCode)
+		}
 		var apiErr ErrorResponse
 		if err := json.Unmarshal(payload, &apiErr); err == nil && apiErr.Error.Message != "" {
 			tflog.SubsystemTrace(traceCtx, "openrouter_client", "OpenRouter API returned an error response", map[string]interface{}{
@@ -417,6 +476,15 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 		return nil
 	}
 	if err := json.Unmarshal(payload, out); err != nil {
+		if sensitive {
+			tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to decode OpenRouter sensitive response", map[string]interface{}{
+				"http_method": method,
+				"http_path":   path,
+				"status_code": resp.StatusCode,
+				"duration_ms": time.Since(start).Milliseconds(),
+			})
+			return fmt.Errorf("failed to decode OpenRouter sensitive response")
+		}
 		tflog.SubsystemTrace(traceCtx, "openrouter_client", "failed to decode OpenRouter API response", map[string]interface{}{
 			"http_method": method,
 			"http_path":   path,

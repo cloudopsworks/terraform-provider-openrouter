@@ -33,9 +33,16 @@ config:
   # Configure repository to enable branch protection
   # https://docs.github.com/en/rest/reference/repos#update-branch-protection
   branchProtection: true
+  # Configure the repository to enable conventional commits Ruleset - This requires PRO/Enterprise/Teams Paid Plan to work, Free plans not-supported.
+  conventionalCommitsEnabled: false
+  # Configure the repository to enforce conventional commits
+  enforceConventionalCommits: false
+  # Configure the repository to enforce custom commits messages pattern
+  enforceCustomCommitsPattern: false
+  enforceCustomCommitsPatternRegex: "PROJECT-[0-9]+" #sample regex to enforce commit messages to have a JIRA ticket number in the format PROJECT-1234
   # Configure the repository to use Git Flow and or support Branches enablement
   gitFlow:
-    enabled: true
+    enabled: false
     supportBranches: false
   # Protected sources rules (future implementation)
   protectedSources:
@@ -43,7 +50,13 @@ config:
     - "*.tfvars"
     - OWNERS
     - Makefile
-    - .github
+    - README-TEMPLATE.md
+    - .github/**/*
+    - .cloudopsworks/cloudopsworks-ci.yaml
+    - .cloudopsworks/gitversion*
+    - .cloudopsworks/.golang
+    - .cloudopsworks/labeler.yml
+    - .cloudopsworks/_VERSION
 
   # Optional only needed if not automatic or protection is true & Further review is needed for merging on Master/Main
   requiredReviewers: 1
@@ -143,4 +156,4 @@ cd:
         targetName: demo2
 
 ############ DO NOT MODIFY BELOW ############
-#workflow-version-tag: v1.3.37 - hash: 3f7927d11ce1f89cee83fc441d168fa369041d95
+#workflow-version-tag: v1.3.58 - hash: 4b693e20ed0f433b02ebe5fb9564e5741eba996d
