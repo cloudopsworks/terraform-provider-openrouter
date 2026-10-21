@@ -16,9 +16,9 @@ golang:
 #  arch: amd64
 #  image_variant: alpine:3.21
 #  disable_cgo: true     # uncomment to disable CGO (pure golang build), useful on some cases
-  goreleaser: true # uncomment to enable goreleaser, the tool is disabled by default
-#  goreleaser:           # New way to enable goreleaser, the tool is disabled by default.
-#    enabled: true       # uncomment to enable goreleaser, the tool is disabled by default, it is recommended to put cloud_type to `none` in case of using GoReleaser, no deployment will be made.
+#  goreleaser: true # uncomment to enable goreleaser, the tool is disabled by default
+  goreleaser:           # New way to enable goreleaser, the tool is disabled by default.
+    enabled: true       # uncomment to enable goreleaser, the tool is disabled by default, it is recommended to put cloud_type to `none` in case of using GoReleaser, no deployment will be made.
 #    chocolatey: true    # uncomment to enable chocolatey package generation, if enabled it will run goreleaser on a windows runner, requires to have windows.goreleaser.yml file in the root of the repository, disabled by default.
 #    macos: true         # uncomment to enable macOS package generation, if enabled it will run goreleaser on a macOS runner, requires to have macos.goreleaser.yml file in the root of the repository, disabled by default.
 #

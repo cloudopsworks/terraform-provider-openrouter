@@ -1,3 +1,4 @@
+# Agents: WayOfWork=githubflow
 mode: ContinuousDelivery
 label: "{BranchName}"
 increment: Inherit

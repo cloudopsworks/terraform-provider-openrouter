@@ -42,7 +42,7 @@ config:
   enforceCustomCommitsPatternRegex: "PROJECT-[0-9]+" #sample regex to enforce commit messages to have a JIRA ticket number in the format PROJECT-1234
   # Configure the repository to use Git Flow and or support Branches enablement
   gitFlow:
-    enabled: true
+    enabled: false
     supportBranches: false
   # Protected sources rules (future implementation)
   protectedSources:
@@ -50,7 +50,13 @@ config:
     - "*.tfvars"
     - OWNERS
     - Makefile
-    - .github
+    - README-TEMPLATE.md
+    - .github/**/*
+    - .cloudopsworks/cloudopsworks-ci.yaml
+    - .cloudopsworks/gitversion*
+    - .cloudopsworks/.golang
+    - .cloudopsworks/labeler.yml
+    - .cloudopsworks/_VERSION
 
   # Optional only needed if not automatic or protection is true & Further review is needed for merging on Master/Main
   requiredReviewers: 1
