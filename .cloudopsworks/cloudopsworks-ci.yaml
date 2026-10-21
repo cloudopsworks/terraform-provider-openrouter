@@ -33,6 +33,13 @@ config:
   # Configure repository to enable branch protection
   # https://docs.github.com/en/rest/reference/repos#update-branch-protection
   branchProtection: true
+  # Configure the repository to enable conventional commits Ruleset - This requires PRO/Enterprise/Teams Paid Plan to work, Free plans not-supported.
+  conventionalCommitsEnabled: false
+  # Configure the repository to enforce conventional commits
+  enforceConventionalCommits: false
+  # Configure the repository to enforce custom commits messages pattern
+  enforceCustomCommitsPattern: false
+  enforceCustomCommitsPatternRegex: "PROJECT-[0-9]+" #sample regex to enforce commit messages to have a JIRA ticket number in the format PROJECT-1234
   # Configure the repository to use Git Flow and or support Branches enablement
   gitFlow:
     enabled: true
@@ -143,4 +150,4 @@ cd:
         targetName: demo2
 
 ############ DO NOT MODIFY BELOW ############
-#workflow-version-tag: v1.3.51 - hash: 1bfee4a09355426f364764ef61fbfee26b63d1be
+#workflow-version-tag: v1.3.58 - hash: 4b693e20ed0f433b02ebe5fb9564e5741eba996d

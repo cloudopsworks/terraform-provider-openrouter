@@ -56,8 +56,8 @@ jobs:
       - name: Push Tag
         uses: ./bp/cd/tasks/repo/push-tag
         if: |
-          github.event.pull_request.merged == true && 
-          ( github.base_ref == 'master' || github.base_ref == 'main' 
+          github.event.pull_request.merged == true &&
+          ( github.base_ref == 'master' || github.base_ref == 'main'
           || startsWith(github.base_ref,'support/') )
         with:
           token: ${{ secrets.BOT_TOKEN }}
@@ -159,29 +159,73 @@ jobs:
         id: co
         with:
           token: ${{ secrets.BOT_TOKEN }}
-          source_ref: ${{ github.head_ref }}
+          source_ref: ${{ github.base_ref }}
           blueprint_ref: 'v5.10'
 
+      - name: Install Tronador CLI
+        uses: cloudopsworks/install-tronador-cli@v1
+        with:
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Prepare source branch for safe purge
+        if: ${{ github.event.pull_request.merged == true && github.event.pull_request.head.repo.full_name == github.repository && (startsWith(github.head_ref, 'release/') || startsWith(github.head_ref, 'hotfix/') || startsWith(github.head_ref, 'feature/')) }}
+        working-directory: ${{ steps.co.outputs.source_path }}
+        env:
+          PURGE_REF: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          case "$PURGE_REF" in
+            release/v*|hotfix/v*|feature/*) ;;
+            *) echo "Refusing unexpected purge branch: $PURGE_REF" >&2; exit 1 ;;
+          esac
+          source_ref="refs/heads/$PURGE_REF"
+          remote_ref="refs/remotes/origin/$PURGE_REF"
+          git check-ref-format "$source_ref"
+          if git ls-remote --exit-code --heads origin "$source_ref" >/dev/null; then
+            git fetch origin "$source_ref:$remote_ref"
+            git branch --track "$PURGE_REF" "$remote_ref"
+          else
+            status=$?
+            if [[ "$status" -ne 2 ]]; then
+              echo "Failed to check the source branch on origin." >&2
+              exit "$status"
+            fi
+            echo "Source branch is already absent from origin; Tronador purge will validate the no-op."
+          fi
+
       - name: Delete local & remote Release
-        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') ) }}
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'release/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') )  && github.event.pull_request.head.repo.full_name == github.repository }}
         working-directory: ${{ steps.co.outputs.source_path }}
         env:
           HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          RELVER=$(echo "$HEAD_REF" | sed -e 's/release\///g')
-          make gitflow/release/purge:$RELVER
+          RELVER="${HEAD_REF#release/}"
+          main_branch=()
+          if [[ "$BASE_REF" == support/* ]]; then
+            main_branch=(--main-branch "$BASE_REF")
+          fi
+          tronador versions "${main_branch[@]}" release purge "$RELVER" --allow-network
 
       - name: Delete local & remote Hotfix
-        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'hotfix/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') ) }}
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'hotfix/') && ( github.base_ref == 'master' || github.base_ref == 'main' || startsWith(github.base_ref,'support/') )  && github.event.pull_request.head.repo.full_name == github.repository }}
         working-directory: ${{ steps.co.outputs.source_path }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          make gitflow/hotfix/purge
+          HOTFIX="${HEAD_REF#hotfix/}"
+          main_branch=()
+          if [[ "$BASE_REF" == support/* ]]; then
+            main_branch=(--main-branch "$BASE_REF")
+          fi
+          tronador versions "${main_branch[@]}" hotfix purge "$HOTFIX" --allow-network
 
       - name: Delete local & remote Feature
-        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'feature/') }}
+        if: ${{ github.event.pull_request.merged == true && startsWith(github.head_ref, 'feature/')  && github.event.pull_request.head.repo.full_name == github.repository }}
         working-directory: ${{ steps.co.outputs.source_path }}
         env:
           HEAD_REF: ${{ github.head_ref }}
         run: |
-          FEATURE=$(echo "$HEAD_REF" | sed -e 's/feature\///g')
-          make gitflow/feature/purge:$FEATURE
+          FEATURE="${HEAD_REF#feature/}"
+          tronador versions feature purge "$FEATURE" --allow-network

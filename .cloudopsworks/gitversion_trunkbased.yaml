@@ -1,3 +1,4 @@
+# Agents: WayOfWork=trunkbased
 mode: ContinuousDelivery
 label: "{BranchName}"
 increment: Inherit

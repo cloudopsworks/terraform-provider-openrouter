@@ -1,0 +1,55 @@
+name: Documentation Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs/**"
+      - "Gemfile"
+      - "Gemfile.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      pages_enabled: ${{ steps.config.outputs.pages_enabled }}
+    steps:
+      - name: Checkout and Config
+        id: config
+        uses: cloudopsworks/blueprints/cd/pages/config@v5.10
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build GitHub Pages site
+        if: ${{ steps.config.outputs.pages_enabled == 'true' }}
+        uses: cloudopsworks/blueprints/cd/pages/build@v5.10
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pages_enabled: ${{ steps.config.outputs.pages_enabled }}
+          docs_path: ${{ steps.config.outputs.docs_path }}
+          pages_path: ${{ steps.config.outputs.pages_path }}
+
+  deploy:
+    needs: build
+    if: ${{ needs.build.outputs.pages_enabled == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: cloudopsworks/blueprints/cd/pages/deploy@v5.10
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

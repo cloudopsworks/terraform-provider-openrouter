@@ -1,5 +1,34 @@
 # Go Application Template
 
+## Agent command policy
+
+The `Makefile` remains for compatibility, but direct Make invocation is deprecated
+for README and Git-flow/version operations. Agents must use the Tronador CLI:
+
+- Run `tronador readme build` to render README output. If committed target/dependency
+  documentation also needs refresh, run `tronador docs targets` first.
+- Use `tronador versions` for branch and version workflows. Before starting a
+  feature, verify that the active GitVersion configuration declares the intended
+  `# Agents: WayOfWork=...` policy; missing or contradictory metadata is a blocker.
+  `tronador versions feature start "<slug>"` starts from `develop` for GitFlow and
+  from the configured primary branch for GitHub Flow or trunk-based development.
+  Use the matching `publish` and `finish` subcommands, and use
+  `tronador versions tag --publish` when creating and publishing a version tag.
+- For destructive cleanup after a verified merge, use
+  `tronador versions feature purge ... --allow-network`,
+  `tronador versions hotfix purge ... --allow-network`, or
+  `tronador versions release purge ... --allow-network`. Fail closed if the
+  WayOfWork policy, merge evidence, authentication, or remote state is missing or
+  contradictory; do not fall back to Make. For a GitFlow release merged into
+  `support/*`, the release must also be back-integrated into `develop` before purge;
+  otherwise Tronador intentionally refuses deletion. CI jobs must install the CLI first with
+  `uses: cloudopsworks/install-tronador-cli@v1`.
+- Run `tronador project version --generate --yes` only after verified GitHub-template
+  or source-owner policy explicitly makes `_VERSION` writable. When authorized, the
+  command only writes the guarded file; review, stage, and commit it through the normal
+  feature-branch and pull-request flow. In downstream implementations `_VERSION` remains
+  a protected template marker; marker presence or inherited prose never grants authority.
+
 This repository is a **CloudOps Works Go application template**. It gives you:
 
 - a minimal Go HTTP service scaffold
@@ -38,19 +67,23 @@ Use this template when you want a new Go service that already follows the CloudO
 Create your new repository from `cloudopsworks/go-app-template`, then clone it locally.
 
 ### 2. Initialize the Go module
-Run the bootstrap target from the root of the new repository:
+Run the bootstrap command from the root of the new repository:
+
+Install Tronador CLI v0.5.0 or newer and GitHub CLI, then authenticate `gh`
+(`gh auth status` must succeed). Project initialization resolves the repository
+owner through GitHub, so network access must be explicit:
 
 ```bash
-make code/init
+tronador project init --allow-network
 ```
 
-This target:
+This command:
 - removes the existing `go.mod`
 - initializes a new module with the current directory name
 - runs `go mod tidy`
 - replaces `hello-service` references in Go sources with your project name
 
-> Rename the repository directory before running `make code/init` if you want the module name to match the final service name.
+> Rename the repository directory before running `tronador project init --allow-network` if you want the module name to match the final service name.
 
 ### 3. Update the sample application
 At minimum, review and update:
@@ -64,10 +97,10 @@ The template starts with `/hello` and `/health` endpoints so the pipeline has a 
 ### 4. Verify locally
 ```bash
 go test ./...
-make version
+tronador project version
 ```
 
-`make version` writes a `VERSION` file using GitVersion semantics. On a tagged commit it uses the tag value; otherwise it derives the version from branch history.
+`tronador project version` writes a `VERSION` file using GitVersion semantics. On a tagged commit it uses the tag value; otherwise it derives the version from branch history.
 
 ---
 
@@ -111,7 +144,8 @@ Set these values before your first pipeline run:
 Use `cloud: none` and `cloud_type: none` only for repositories that should build/scan without deployment. In that mode, your upstream blueprint configuration must resolve deployment to disabled.
 
 Common optional sections:
-- `golang` — package name override, Go version, target OS/arch, image variant, CGO toggle, and optional GoReleaser publishing
+- `golang` — package name override, Go version, target OS/arch, image variant, CGO toggle, and optional GoReleaser publishing (including macOS and Chocolatey/Windows runners)
+- `pages` — GitHub Pages publishing for Jekyll documentation (see [GitHub Pages documentation](#github-pages-documentation))
 - `preview` — PR preview environment behavior
 - `apis` — API Gateway publishing
 - `observability` — tracing/monitoring agent configuration
@@ -125,23 +159,36 @@ golang:
   package_name: my-cli
 ```
 
-To enable GoReleaser for tagged releases, add the flag under `golang`:
+To enable GoReleaser for tagged releases, configure the `goreleaser` block under `golang`:
 
 ```yaml
 golang:
-  goreleaser: true
+  goreleaser:
+    enabled: true     # run GoReleaser on the default runner with .goreleaser.yml
+    macos: true       # optional: run GoReleaser on a macOS runner with macos.goreleaser.yml
+    chocolatey: true  # optional: run GoReleaser on a Windows runner with windows.goreleaser.yml
 ```
 
-Leave it unset when the repository should only build container/image artifacts. The release workflow keeps GoReleaser disabled by default.
+| Key | Runner | Config file (repository root) | Typical use |
+|---|---|---|---|
+| `enabled` | `runner_set` (default runner) | `.goreleaser.yml` | Cross-platform binaries, archives, checksums, Homebrew tap |
+| `macos` | `macos-latest` | `macos.goreleaser.yml` | macOS code signing and notarization |
+| `chocolatey` | `windows-latest` | `windows.goreleaser.yml` | Chocolatey package build and push |
 
-> **Required `.goreleaser.yml` configuration:** The CloudOps Works release workflow creates a GitHub draft release before invoking GoReleaser. Your `.goreleaser.yml` must include `release.use_existing_draft: true` so GoReleaser updates that draft instead of attempting to create a new release. Without this setting GoReleaser will fail because the release already exists.
+Each key opts in independently and defaults to disabled. Enabling any of them makes the release job create the GitHub release as a draft for GoReleaser to complete. The macOS and Chocolatey jobs run first, and the main GoReleaser job runs after them. A failure in the macOS or Chocolatey job does not block the main job. All GoReleaser jobs run only after a successful release job, and only for release builds without a prerelease qualifier.
+
+The boolean form `golang.goreleaser: true` is deprecated but still supported; it is equivalent to `goreleaser.enabled: true`.
+
+Leave GoReleaser unset when the repository should only build container/image artifacts. The release workflow keeps GoReleaser disabled by default.
+
+> **Required GoReleaser configuration:** The CloudOps Works release workflow creates a GitHub draft release before invoking GoReleaser. Every GoReleaser config file you enable (`.goreleaser.yml`, `macos.goreleaser.yml`, `windows.goreleaser.yml`) must include `release.use_existing_draft: true` so GoReleaser updates that draft instead of attempting to create a new release. Without this setting GoReleaser will fail because the release already exists.
 >
 > ```yaml
 > release:
 >   use_existing_draft: true
 > ```
 
-> **Required secrets when `goreleaser: true` is set:** The GoReleaser step signs release artifacts using GPG. Before enabling this flag you must add the following secrets at the repository or organization level:
+> **Required secrets when any GoReleaser job is enabled:** The GoReleaser steps sign release artifacts using GPG. Before enabling `enabled`, `macos`, or `chocolatey` you must add the following secrets at the repository or organization level:
 >
 > - `GPG_PRIVATE_KEY` — armored GPG private key used to sign released artifacts
 > - `GPG_PASSPHRASE` — passphrase for the GPG private key
@@ -151,9 +198,10 @@ Leave it unset when the repository should only build container/image artifacts. 
 > **Optional GoReleaser distribution secrets:** If your GoReleaser configuration publishes to Homebrew, Chocolatey, or signed macOS binaries, also add:
 >
 > - `HOMEBREW_TAP_TOKEN` — GitHub personal access token with write access to your Homebrew tap repository. Falls back to `BOT_TOKEN` when absent, so Homebrew tap commits use the bot identity instead of failing.
-> - `CHOCOLATEY_API_KEY` — Chocolatey community repository API key for publishing packages
-> - `XCODE_BUILD_CERTIFICATE_BASE64` — base64-encoded Apple Developer certificate (P12) for macOS binary signing
-> - `XCODE_BUILD_CERTIFICATE_PASS` — passphrase for the Apple Developer certificate
+> - `CHOCOLATEY_API_KEY` — Chocolatey community repository API key for publishing packages (used by the `chocolatey` job)
+> - `APPLE_SIGN_CERTIFICATE_BASE64` — base64-encoded Apple Developer certificate (P12) for macOS binary signing. Falls back to `XCODE_BUILD_CERTIFICATE_BASE64` when absent.
+> - `APPLE_SIGN_CERTIFICATE_PASS` — passphrase for the Apple Developer certificate. Falls back to `XCODE_BUILD_CERTIFICATE_PASS` when absent.
+> - `APPLE_KEYCHAIN_PASSWORD` — password for the temporary signing keychain on the macOS runner. Falls back to `XCODE_KEYCHAIN_PASSWORD` when absent.
 > - `APPLE_STORE_CONNECT_KEY_BASE64` — base64-encoded App Store Connect API key for macOS notarization
 > - `APPLE_STORE_CONNECT_KEY_ID` — App Store Connect API key identifier
 > - `APPLE_STORE_CONNECT_ISSUER_ID` — App Store Connect API issuer identifier
@@ -235,6 +283,26 @@ Use preview environments when pull requests from `feature/**` or `hotfix/**` sho
 
 ---
 
+## GitHub Pages documentation
+
+The `docs-pages.yml` workflow builds a Jekyll site from your repository docs and deploys it to GitHub Pages. It is disabled by default. Enable it in `inputs-global.yaml`:
+
+```yaml
+pages:
+  enabled: true
+  docs_path: "docs"         # Jekyll source folder (default: docs)
+  pages_path: "docs-pages"  # build output folder uploaded to Pages (default: docs-pages)
+```
+
+Requirements:
+- Jekyll-format docs under `docs_path`, including a `_config.yml`
+- `Gemfile` and `Gemfile.lock` at the repository root that pin Jekyll and its plugins
+- Repository **Settings → Pages → Build and deployment → Source** set to **GitHub Actions**
+
+The workflow runs on pushes to `master` that change `docs/**`, `Gemfile`, or `Gemfile.lock`, and on manual dispatch. If you set a custom `docs_path`, pushes under that folder do not trigger it automatically, so run it manually (`docs-pages.yml` is template-owned and is overwritten on upgrade). When `pages.enabled` is not `true`, the build step and deploy job are skipped.
+
+---
+
 ## GitHub Actions workflow model
 
 Important workflows in this template:
@@ -246,9 +314,10 @@ Important workflows in this template:
 - `deploy-blue-green.yml` — blue/green deployment flow
 - `scan.yml` — SAST/SCA/DAST orchestration
 - `environment-unlock.yml` / `environment-destroy.yml` — environment operations
+- `docs-pages.yml` — Jekyll build and GitHub Pages deployment when `pages.enabled: true`
 - `automerge.yml`, slash-command workflows, Jira integration workflows — repo automation
 
-When `golang.goreleaser: true` is set, `main-build.yml` also runs an additional GoReleaser publication step during the release job after the standard GitHub release is created. Use that mode only when the generated repository includes a valid GoReleaser configuration and the signing secrets described below.
+When GoReleaser is enabled under `golang.goreleaser`, `main-build.yml` runs GoReleaser publication jobs after the standard GitHub release is created: `goreleaser_mac` (macOS runner) and `goreleaser_chocolatey` (Windows runner) when their flags are set, then `goreleaser_main`. Use that mode only when the generated repository includes valid GoReleaser configuration files and the signing secrets described below.
 
 This template now also includes dedicated GitVersion reference files for both GitFlow and GitHub Flow release models. If your generated repository wants to use one of them directly, wire it explicitly in your generator/build logic rather than assuming automatic selection.
 
@@ -267,15 +336,16 @@ Typical examples:
 - `DEPLOYMENT_AZURE_SERVICE_ID` / `DEPLOYMENT_AZURE_SERVICE_SECRET`
 - runner, registry, region, and state configuration variables
 
-If you enable `golang.goreleaser: true`, the following secrets are **required** at the repository or organization level — the workflow will fail without them:
+If you enable any GoReleaser job under `golang.goreleaser`, the following secrets are **required** at the repository or organization level — the workflow will fail without them:
 - `GPG_PRIVATE_KEY` — armored GPG private key for signing release artifacts
 - `GPG_PASSPHRASE` — passphrase for the GPG private key
 
 The following secrets are **optional** and only needed when your GoReleaser configuration targets those distribution channels or signing steps:
 - `HOMEBREW_TAP_TOKEN` — GitHub personal access token with write access to your Homebrew tap repository. Falls back to `BOT_TOKEN` when absent.
 - `CHOCOLATEY_API_KEY` — Chocolatey community repository API key for publishing packages
-- `XCODE_BUILD_CERTIFICATE_BASE64` — base64-encoded Apple Developer certificate (P12) for macOS binary signing
-- `XCODE_BUILD_CERTIFICATE_PASS` — passphrase for the Apple Developer certificate
+- `APPLE_SIGN_CERTIFICATE_BASE64` — base64-encoded Apple Developer certificate (P12) for macOS binary signing. Falls back to `XCODE_BUILD_CERTIFICATE_BASE64`.
+- `APPLE_SIGN_CERTIFICATE_PASS` — passphrase for the Apple Developer certificate. Falls back to `XCODE_BUILD_CERTIFICATE_PASS`.
+- `APPLE_KEYCHAIN_PASSWORD` — password for the temporary signing keychain on the macOS runner. Falls back to `XCODE_KEYCHAIN_PASSWORD`.
 - `APPLE_STORE_CONNECT_KEY_BASE64` — base64-encoded App Store Connect API key for macOS notarization
 - `APPLE_STORE_CONNECT_KEY_ID` — App Store Connect API key identifier
 - `APPLE_STORE_CONNECT_ISSUER_ID` — App Store Connect API issuer identifier
@@ -308,12 +378,13 @@ If you use the CloudOps Works release workflow, keep changes grouped by release 
 ## Recommended first-pass checklist for new repositories
 
 - [ ] Create repo from template
-- [ ] Run `make code/init`
+- [ ] Run `tronador project init --allow-network`
 - [ ] Rename/update the sample service code
 - [ ] Update `.cloudopsworks/cloudopsworks-ci.yaml`
 - [ ] Update `.cloudopsworks/vars/inputs-global.yaml`
 - [ ] Configure exactly one target file per active environment
 - [ ] Configure preview settings if needed
+- [ ] Configure GitHub Pages docs (`pages`) and GoReleaser runners (`golang.goreleaser`) if needed
 - [ ] Add required GitHub secrets and variables
 - [ ] Run `go test ./...`
 - [ ] Open a PR and verify `pr-build.yml`
@@ -331,24 +402,24 @@ If you use the CloudOps Works release workflow, keep changes grouped by release 
 ## Upgrading from the Template
 
 Repositories derived from this template stay in sync with upstream releases using the
-`make repos/upgrade*` targets. An agent asked to "upgrade", "update from template",
+`tronador repos upgrade` command family. An agent asked to "upgrade", "update from template",
 "sync with template", "apply template changes", or "bump template version" should use
-these targets — never fetch or apply template changes manually.
+these commands — never fetch or apply template changes manually.
 
-### Available upgrade targets
+### Available upgrade commands
 
 | Target | When to use |
 |---|---|
-| `make repos/upgrade` | **Default — patch upgrade.** Pulls the latest patch within the **same minor version**. No breaking changes. Use for routine maintenance. |
-| `make repos/upgrade/major` | Pulls the latest release within the **same major version**. May include workflow-level changes. |
-| `make repos/upgrade/master` | Pulls from the template's `master` branch tip. Use only when explicitly asked to track the latest unreleased template state. |
-| `make repos/upgrade/dev` | Pulls from the template's `develop` branch. Use only for pre-release or preview upgrades. |
-| `make repos/available` | Lists the latest available patch and major versions without modifying anything. Run this first to see what is available. |
+| `tronador repos upgrade` | **Default — patch upgrade.** Pulls the latest patch within the **same minor version**. No breaking changes. Use for routine maintenance. |
+| `tronador repos upgrade major` | Pulls the latest release within the **same major version**. May include workflow-level changes. |
+| `tronador repos upgrade master` | Pulls from the template's `master` branch tip. Use only when explicitly asked to track the latest unreleased template state. |
+| `tronador repos upgrade develop` | Pulls from the template's `develop` branch. Use only for pre-release or preview upgrades. |
+| `tronador repos available` | Lists the latest available patch and major versions without modifying anything. Run this first to see what is available. |
 
 ### Upgrade workflow for agents
 
-1. Run `make repos/available` to see the current and latest available versions.
-2. Choose the appropriate target (default: `make repos/upgrade` for a routine patch upgrade).
+1. Run `tronador repos available` to see the current and latest available versions.
+2. Choose the appropriate command (default: `tronador repos upgrade` for a routine patch upgrade).
 3. Review the diff — the upgrade overwrites `.github/workflows/` and selected `.cloudopsworks/` metadata; application source files are never touched.
 4. Commit the result with: `chore: upgrade from <template-name> <old-version> → <new-version> +semver: patch`
 5. Use `/cw-release` to create and merge the hotfix PR (see [Release Workflow — use `cw-release`](#release-workflow--use-cw-release)).
@@ -477,9 +548,9 @@ Apply the merge rules from Step 4 to every file in the following subdirectories,
 
 ---
 
-### Step 6 — update `_VERSION`
+### Step 6 — verify the protected `_VERSION` marker
 
-After all merges are verified correct, write the target version string (e.g., `v1.4.16`) to `.cloudopsworks/_VERSION`. This is the final step.
+Do not write `.cloudopsworks/_VERSION` during a manual downstream merge. It is a protected template-generation marker and may change only through the repository's verified, authorized template-upgrade owner (for example `tronador repos upgrade`). After all merges are verified, confirm the authorized upgrade recorded the expected template version; otherwise leave the marker unchanged and report the mismatch.
 
 ---
 
@@ -492,7 +563,7 @@ An agent performing this upgrade must **never**:
 - Change the YAML structure of any active (uncommented) operator section.
 - Alter a file's opening description comment (`# This file contains...`) unless the upstream version changed it.
 - Modify `.cloudopsworks/cloudopsworks-ci.yaml`, `gitversion_*.yaml`, or any file under `.github/workflows/` as part of a vars upgrade — those follow their own upgrade path.
-- Update `_VERSION` before all file merges are complete.
+- Hand-edit or stage `_VERSION`; only the verified, authorized template-upgrade owner may change it after the file merges are complete.
 
 ---
 
@@ -530,7 +601,7 @@ In Claude Code (CLI, IDE extension, or web):
 
 1. Detects the GitVersion flow in use (`gitversion_gitflow.yaml` or `gitversion_githubflow.yaml`).
 2. Reads the repo-local release policy from `.cloudopsworks/cloudopsworks-ci.yaml`.
-3. Drives the shared tronador `make` / `gh` release path end-to-end.
+3. Drives the shared `tronador` CLI / `gh` release path end-to-end.
 4. Creates the correct branch, PR, tag, and GitHub Release in the right sequence.
 
-> **Do not** run `git tag`, `gh release create`, or `make release` directly. Always let `cw-release` orchestrate these steps to keep version history and CI consistent.
+> **Do not** run `git tag`, `gh release create`, or `tronador versions tag --publish` directly. Always let `cw-release` orchestrate these steps to keep version history and CI consistent.

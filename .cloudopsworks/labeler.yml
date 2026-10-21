@@ -7,19 +7,19 @@
 #     Distributed Under Apache v2.0 License
 #
 release:
-  - base-branch: [ 'main', 'master' ]
+  - base-branch: ['main', 'master']
 
 feature:
-  - head-branch: [ '^feature' ]
+  - head-branch: ['^feature']
 
 hotfix:
-  - head-branch: [ '^hotfix', '^fix' ]
+  - head-branch: ['^hotfix', '^fix']
 
 size-XS:
-- any: [ '*Dockerfile' ]
+  - any: ['*Dockerfile']
 
 size-S:
-- any: [ '*go.mod', 'charts/**/*' ]
+  - any: ['*go.mod', 'charts/**/*']
 
 size-XL:
-- any: [ '**/*.go', '!*Dockerfile', '!*go.mod', '!charts/**/*' ]
+  - any: ['**/*.go', '!*Dockerfile', '!*go.mod', '!charts/**/*']
