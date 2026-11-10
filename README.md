@@ -3,8 +3,7 @@
   ** 
   ** This file was automatically generated. 
   ** 1) Make all changes to `README.yaml` 
-  ** 2) Run `make init` (you only need to do this once)
-  ** 3) Run`make readme` to rebuild this file. 
+  ** 2) Run `tronador readme build` to rebuild this file.
   -->
 [![README Header][readme_header_img]][readme_header_link]
 
@@ -14,9 +13,12 @@
 
 
 Manage OpenRouter management-plane controls as code: workspaces, API keys,
-guardrails, guardrail-key assignments, workspace budgets, and BYOK credential
-metadata. This Terraform/OpenTofu provider focuses on resources with a clear,
-safe infrastructure lifecycle.
+guardrails, guardrail-key assignments, workspace budgets, BYOK credential
+metadata, workspace policies with concurrency-safe subject assignments, SCIM
+group mappings, and write-only observability destinations. Read-only data
+sources cover workspace memberships, model discovery, and dated usage.
+This Terraform/OpenTofu provider focuses on resources with a clear, safe
+infrastructure lifecycle.
 
 
 ---
@@ -46,7 +48,7 @@ It's 100% Open Source and licensed under the [APACHE2](LICENSE).
 
 Manage the OpenRouter controls your team can review and reproduce: scoped API
 keys, workspaces, guardrails, key-to-guardrail assignments, workspace budgets,
-and BYOK credential metadata.
+BYOK credential metadata, and typed budget/model-availability policies.
 
 ### Managed capabilities
 
@@ -58,6 +60,11 @@ and BYOK credential metadata.
 | Guardrail-key assignments | `openrouter_guardrail_key_assignment` |
 | Workspace budgets | `openrouter_workspace_budget` |
 | BYOK credentials | `openrouter_byok_key` (write-only credential) |
+| Workspace policies | `openrouter_budget_policy`, `openrouter_model_availability_policy` |
+| Direct policy assignments | `openrouter_api_key_policy_assignment`, `openrouter_member_policy_assignment` |
+| SCIM group mappings | `openrouter_scim_group_mapping` (existing IdP groups) |
+| Observability destinations | `openrouter_observability_destination` (write-only configuration) |
+| Discovery and snapshots | SCIM groups, workspace members, models, dated activity data sources |
 
 ### Resources
 
@@ -67,6 +74,12 @@ and BYOK credential metadata.
 - `openrouter_guardrail_key_assignment`
 - `openrouter_workspace_budget`
 - `openrouter_byok_key`
+- `openrouter_budget_policy`
+- `openrouter_model_availability_policy`
+- `openrouter_api_key_policy_assignment`
+- `openrouter_member_policy_assignment`
+- `openrouter_scim_group_mapping`
+- `openrouter_observability_destination`
 
 ### Data sources
 
@@ -77,6 +90,11 @@ and BYOK credential metadata.
 - `openrouter_organization` — reads organization information; it does not manage members
 - `openrouter_providers`
 - `openrouter_byok_keys`
+- `openrouter_scim_groups`
+- `openrouter_workspace_members` — read-only, including implicit memberships
+- `openrouter_model` — single model lookup
+- `openrouter_models` — bounded catalog page
+- `openrouter_activity` — explicit-date usage snapshot
 
 ## Usage
 
@@ -262,13 +280,31 @@ See:
 - `examples/provider/`
 - `examples/resources/`
 - `examples/data-sources/`
+- `examples/policies/` — native workspace policies and direct subject assignments
+- `examples/management-plane/` — SCIM, write-only observability, model and activity discovery
 - `docs/`
+
+## Policy ownership
+
+Policy resources manage native, non-default workspace policies. Budget policies
+apply per member/API key; use `openrouter_workspace_budget` for aggregate spend.
+Configuration updates replace the policy config but preserve externally managed
+subject assignments. Separate assignment resources use OpenRouter optimistic
+concurrency checks and refuse to overwrite existing direct assignments.
+
+Legacy-mapped policies, account policies, defaults, and default opt-outs are not
+managed by these resources. Do not manage the same controls through both legacy
+guardrails and policies. See [policy examples](examples/policies/) and the
+[management-plane roadmap](docs/roadmap.md) for scope and migration constraints.
 
 ## Known limitations in v1
 
 - OpenRouter returns the actual API key secret only on create. The provider exposes it as `key` and marks it sensitive, but it can still exist in state.
 - The provider requires Terraform/OpenTofu `>= 1.11` because it advertises the write-only `openrouter_byok_key.key_wo` argument globally. Its raw credential is never stored in state and cannot be drift-detected.
 - `openrouter_organization` is a read-only data source; the provider does not manage organization members.
+- Workspace memberships are read-only until default/implicit and SCIM ownership can be identified reliably. SCIM support manages group mappings, not directory identities or one-shot sync jobs.
+- Observability configuration is write-only and merge-updated using a revision marker; returned configuration is discarded and secret drift cannot be detected. Destinations default to disabled/privacy mode enabled; S3 IAM-role bootstrap and filter-rule ownership are not included.
+- Model and activity data sources are snapshots, not availability or billing guarantees. Activity uses an explicit date within the API's rolling completed-UTC-day retention window.
 
 ## Registry publishing
 
