@@ -147,6 +147,12 @@ Set `json_key` for a nested JSON path such as `openrouter.api_key`.
 - `openrouter_guardrail_key_assignment`
 - `openrouter_workspace_budget`
 - `openrouter_byok_key`
+- `openrouter_budget_policy`
+- `openrouter_model_availability_policy`
+- `openrouter_api_key_policy_assignment`
+- `openrouter_member_policy_assignment`
+- `openrouter_scim_group_mapping`
+- `openrouter_observability_destination`
 
 ## Supported Data Sources
 
@@ -157,11 +163,23 @@ Set `json_key` for a nested JSON path such as `openrouter.api_key`.
 - `openrouter_organization`
 - `openrouter_providers`
 - `openrouter_byok_keys`
+- `openrouter_scim_groups`
+- `openrouter_workspace_members`
+- `openrouter_model`
+- `openrouter_models`
+- `openrouter_activity`
 
 ## Management notes
 
 - Use `openrouter_guardrail_key_assignment` to associate a key hash with a guardrail; one Terraform resource should own each key assignment.
 - Use `openrouter_workspace_budget` for a workspace interval budget. Its identity preserves the configured `<workspace_ref>/<interval>`; OpenRouter accepts a UUID or slug, though a UUID is recommended for stability.
 - `openrouter_byok_key` uses a provider-wide write-only schema, so Terraform/OpenTofu `>= 1.11` is required; raw provider credentials are never returned in state.
+- Use `openrouter_budget_policy` and `openrouter_model_availability_policy` for native, non-default workspace policies. Policy budgets apply per member/API key, not to aggregate workspace spend.
+- Use direct policy assignment resources for individual API keys or organization members. They use optimistic concurrency and refuse existing direct bindings; import those instead.
+- Policy resources reject legacy-mapped, account-owned, and default policies. Do not manage the same effective controls with both legacy guardrails and policy resources. See [policy examples](../examples/policies/) and the [roadmap](roadmap.md).
+- SCIM group mappings manage existing IdP groups' workspace associations, not directory users or sync jobs. Mapping destruction defaults to preserving membership; retained access becomes manual.
+- Workspace membership is read-only: documented API responses do not reliably distinguish implicit/default membership or SCIM ownership, so no membership mutation resource is exposed.
+- Observability destinations default to disabled and privacy mode enabled. Their configuration is write-only and revision-triggered; masked responses are discarded, so secret/configuration drift cannot be detected. Metadata-only import is supported. Filter-rule ownership and S3 IAM-role bootstrap remain outside this initial subset.
+- Models and activity are bounded read-only snapshots, not inference, availability guarantees or billing enforcement. Activity requires an explicit date and is subject to the service's rolling retention window.
 
 See [resources](resources/) and [data sources](data-sources/) for feature-specific lifecycle and import guidance.

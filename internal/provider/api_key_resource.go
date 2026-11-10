@@ -86,7 +86,7 @@ func (r *apiKeyResource) Schema(_ context.Context, _ resource.SchemaRequest, res
 			"limit_remaining":       resourceschema.Float64Attribute{Computed: true, MarkdownDescription: "Remaining limit in USD."},
 			"limit_reset":           resourceschema.StringAttribute{Optional: true, Computed: true, MarkdownDescription: "Reset interval: daily, weekly, monthly, or null for no reset."},
 			"include_byok_in_limit": resourceschema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether BYOK usage counts toward the limit."},
-			"disabled":              resourceschema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the key is disabled."},
+			"disabled":              resourceschema.BoolAttribute{Optional: true, Computed: true, MarkdownDescription: "Whether the key is disabled. On creation, true is applied with a separate update after the key is created; creation is not atomically disabled."},
 			"expires_at":            resourceschema.StringAttribute{Optional: true, MarkdownDescription: "UTC ISO 8601 expiration timestamp. Replacement when changed.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"creator_user_id": resourceschema.StringAttribute{
 				Optional:            true,
@@ -139,6 +139,44 @@ func (r *apiKeyResource) Create(ctx context.Context, req resource.CreateRequest,
 	state := flattenAPIKeyModel(created.Data)
 	state.Key = types.StringValue(created.Key)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() || !plan.Disabled.ValueBool() {
+		return
+	}
+
+	// POST does not accept disabled. Record the created identity and one-time
+	// secret before the follow-up calls so errors do not orphan the new key.
+	disabled := true
+	updated, err := r.client.UpdateAPIKey(ctx, created.Data.Hash, client.APIKeyUpdateRequest{Disabled: &disabled})
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to disable newly created OpenRouter API key", "The key was created and retained in state, but may still be enabled. "+err.Error())
+		return
+	}
+	if updated.Hash != created.Data.Hash {
+		resp.Diagnostics.AddError("Unable to confirm newly created OpenRouter API key identity", "The disable response identified a different API key. The original created key has been retained in state; its disabled status could not be confirmed.")
+		return
+	}
+	state = flattenAPIKeyModel(*updated)
+	state.Key = types.StringValue(created.Key)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	refreshed, err := r.client.GetAPIKey(ctx, created.Data.Hash)
+	if err != nil {
+		resp.Diagnostics.AddError("Unable to refresh newly created OpenRouter API key after disabling", "The key was created and retained in state, but its current disabled status could not be confirmed. "+err.Error())
+		return
+	}
+	if refreshed.Hash != created.Data.Hash {
+		resp.Diagnostics.AddError("Unable to confirm newly created OpenRouter API key identity", "The refresh response identified a different API key. The original created key and its last observed status have been retained in state.")
+		return
+	}
+	state = flattenAPIKeyModel(*refreshed)
+	state.Key = types.StringValue(created.Key)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+	if !refreshed.Disabled {
+		resp.Diagnostics.AddError("Unable to disable newly created OpenRouter API key", "OpenRouter still reports the newly created key as enabled after the disable request. The key and its actual status have been retained in state.")
+	}
 }
 
 func (r *apiKeyResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
