@@ -491,6 +491,10 @@ func (p *openRouterProvider) Resources(_ context.Context) []func() resource.Reso
 		NewGuardrailKeyAssignmentResource,
 		NewWorkspaceBudgetResource,
 		NewBYOKKeyResource,
+		NewBudgetPolicyResource,
+		NewModelAvailabilityPolicyResource,
+		NewAPIKeyPolicyAssignmentResource,
+		NewMemberPolicyAssignmentResource,
 	}
 }
 
