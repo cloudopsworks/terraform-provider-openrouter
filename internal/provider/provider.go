@@ -511,5 +511,8 @@ func (p *openRouterProvider) DataSources(_ context.Context) []func() datasource.
 		NewBYOKKeysDataSource,
 		NewSCIMGroupsDataSource,
 		NewWorkspaceMembersDataSource,
+		NewModelDataSource,
+		NewModelsDataSource,
+		NewActivityDataSource,
 	}
 }
