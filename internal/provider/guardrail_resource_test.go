@@ -10,10 +10,74 @@ import (
 	datasourceschema "github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	frameworkresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-go/tftypes"
 
 	"github.com/cloudopsworks/terraform-provider-openrouter/internal/client"
 )
+
+func TestGuardrailZDRPlanModifiers(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	var schemaResponse frameworkresource.SchemaResponse
+	NewGuardrailResource().Schema(ctx, frameworkresource.SchemaRequest{}, &schemaResponse)
+	configType := tftypes.Object{AttributeTypes: map[string]tftypes.Type{"enforce_zdr": tftypes.Bool}}
+	configSchema := resourceschema.Schema{Attributes: map[string]resourceschema.Attribute{
+		"enforce_zdr": resourceschema.BoolAttribute{Optional: true, Computed: true},
+	}}
+	for _, field := range []string{"enforce_zdr_anthropic", "enforce_zdr_google", "enforce_zdr_openai", "enforce_zdr_other"} {
+		t.Run(field, func(t *testing.T) {
+			for _, tt := range []struct {
+				name      string
+				aggregate types.Bool
+				config    types.Bool
+				plan      types.Bool
+				state     types.Bool
+				create    bool
+				want      types.Bool
+			}{
+				{name: "omitted aggregate retains state", aggregate: types.BoolNull(), config: types.BoolNull(), plan: types.BoolUnknown(), state: types.BoolValue(true), want: types.BoolValue(true)},
+				{name: "aggregate true allows fanout", aggregate: types.BoolValue(true), config: types.BoolNull(), plan: types.BoolUnknown(), state: types.BoolValue(false), want: types.BoolUnknown()},
+				{name: "aggregate false allows fanout", aggregate: types.BoolValue(false), config: types.BoolNull(), plan: types.BoolUnknown(), state: types.BoolValue(true), want: types.BoolUnknown()},
+				{name: "unknown aggregate allows fanout", aggregate: types.BoolUnknown(), config: types.BoolNull(), plan: types.BoolUnknown(), state: types.BoolValue(false), want: types.BoolUnknown()},
+				{name: "explicit provider remains known", aggregate: types.BoolValue(false), config: types.BoolValue(false), plan: types.BoolValue(false), state: types.BoolValue(true), want: types.BoolValue(false)},
+				{name: "unknown provider remains unknown", aggregate: types.BoolNull(), config: types.BoolUnknown(), plan: types.BoolUnknown(), state: types.BoolValue(true), want: types.BoolUnknown()},
+				{name: "no-op remains known", aggregate: types.BoolValue(true), config: types.BoolNull(), plan: types.BoolValue(true), state: types.BoolValue(true), want: types.BoolValue(true)},
+				{name: "create remains unknown", aggregate: types.BoolNull(), config: types.BoolNull(), plan: types.BoolUnknown(), state: types.BoolNull(), create: true, want: types.BoolUnknown()},
+				{name: "destroy remains null", aggregate: types.BoolValue(true), config: types.BoolNull(), plan: types.BoolNull(), state: types.BoolValue(true), want: types.BoolNull()},
+			} {
+				t.Run(tt.name, func(t *testing.T) {
+					aggregate, err := tt.aggregate.ToTerraformValue(ctx)
+					if err != nil {
+						t.Fatal(err)
+					}
+					raw := tftypes.NewValue(configType, map[string]tftypes.Value{"enforce_zdr": aggregate})
+					stateRaw := raw
+					if tt.create {
+						stateRaw = tftypes.NewValue(configType, nil)
+					}
+					req := planmodifier.BoolRequest{
+						Config: tfsdk.Config{Schema: configSchema, Raw: raw}, ConfigValue: tt.config,
+						PlanValue: tt.plan, StateValue: tt.state, State: tfsdk.State{Raw: stateRaw},
+					}
+					resp := planmodifier.BoolResponse{PlanValue: req.PlanValue}
+					for _, modifier := range schemaResponse.Schema.Attributes[field].(resourceschema.BoolAttribute).PlanModifiers {
+						modifier.PlanModifyBool(ctx, req, &resp)
+						req.PlanValue = resp.PlanValue
+					}
+					if resp.Diagnostics.HasError() {
+						t.Fatalf("unexpected diagnostics: %s", resp.Diagnostics)
+					}
+					if !resp.PlanValue.Equal(tt.want) {
+						t.Fatalf("plan = %s, want %s", resp.PlanValue, tt.want)
+					}
+				})
+			}
+		})
+	}
+}
 
 func TestGuardrailResourceWorkspaceIDSchemaSupportsAPIDefault(t *testing.T) {
 	t.Parallel()

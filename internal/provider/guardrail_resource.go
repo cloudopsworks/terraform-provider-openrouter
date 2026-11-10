@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
@@ -349,9 +350,33 @@ func guardrailZDRBoolAttribute(description string) resourceschema.BoolAttribute 
 		Computed:            true,
 		MarkdownDescription: description,
 		PlanModifiers: []planmodifier.Bool{
-			boolplanmodifier.UseStateForUnknown(),
+			guardrailZDRUseStateForUnknown{},
 		},
 	}
+}
+
+type guardrailZDRUseStateForUnknown struct{}
+
+func (guardrailZDRUseStateForUnknown) Description(context.Context) string {
+	return "Retain the prior provider ZDR flag when the aggregate enforce_zdr flag is not configured."
+}
+
+func (m guardrailZDRUseStateForUnknown) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+func (guardrailZDRUseStateForUnknown) PlanModifyBool(ctx context.Context, req planmodifier.BoolRequest, resp *planmodifier.BoolResponse) {
+	if req.State.Raw.IsNull() || !req.PlanValue.IsUnknown() || !req.ConfigValue.IsNull() {
+		return
+	}
+	var aggregate types.Bool
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("enforce_zdr"), &aggregate)...)
+	if resp.Diagnostics.HasError() || !aggregate.IsNull() {
+		// Sending the aggregate can change every omitted provider flag. Leave
+		// these unknown rather than promising their old state after apply.
+		return
+	}
+	boolplanmodifier.UseStateForUnknown().PlanModifyBool(ctx, req, resp)
 }
 
 func guardrailUpdateFlattenPrior(plan, state guardrailResourceModel) guardrailResourceModel {
