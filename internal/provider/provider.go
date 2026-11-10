@@ -496,6 +496,7 @@ func (p *openRouterProvider) Resources(_ context.Context) []func() resource.Reso
 		NewAPIKeyPolicyAssignmentResource,
 		NewMemberPolicyAssignmentResource,
 		NewSCIMGroupMappingResource,
+		NewObservabilityDestinationResource,
 	}
 }
 
