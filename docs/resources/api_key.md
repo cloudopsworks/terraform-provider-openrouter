@@ -25,6 +25,19 @@ resource "openrouter_api_key" "service" {
 - `expires_at` - (Optional, Forces replacement) UTC ISO-8601 expiration timestamp.
 - `creator_user_id` - (Optional, Computed, Forces replacement) Optional organization member creator identifier. If omitted, the provider records the creator returned by OpenRouter.
 
+### Disabled key creation
+
+OpenRouter does not accept `disabled` during key creation. For `disabled = true`,
+the provider creates the key, disables it with a separate update, then reads its
+actual status. This is **not atomic**: the key is initially enabled until the
+update succeeds. Use `limit = 0` when a new key must not have a positive spending
+allowance during that window. A zero limit is not a substitute for disabling the key.
+
+If the disable or confirmation request fails, Terraform reports an error and
+retains the created key's ID, one-time secret, and last API-returned status in
+state so it remains tracked for recovery or destruction. Do not assume the key is
+disabled after a failed apply.
+
 ## Attribute Reference
 
 In addition to the arguments above, the resource exports:

@@ -2,7 +2,13 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	frameworkresource "github.com/hashicorp/terraform-plugin-framework/resource"
 	resourceschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -13,6 +19,124 @@ import (
 
 	"github.com/cloudopsworks/terraform-provider-openrouter/internal/client"
 )
+
+func TestAPIKeyCreateDisabledRetainsCreatedState(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name             string
+		createFailure    bool
+		patchFailure     bool
+		refreshFailure   bool
+		patchDisabled    bool
+		refreshDisabled  bool
+		patchHash        string
+		missingPatchHash bool
+		refreshHash      string
+		wantError        string
+		wantDisabled     bool
+		wantMethods      string
+	}{
+		{name: "create failure", createFailure: true, wantError: "Unable to create", wantMethods: "POST"},
+		{name: "disable failure retains creation", patchFailure: true, wantError: "Unable to disable newly created", wantMethods: "POST,PATCH"},
+		{name: "refresh failure retains patch response", patchDisabled: true, refreshFailure: true, wantError: "Unable to refresh newly created", wantDisabled: true, wantMethods: "POST,PATCH,GET"},
+		{name: "refresh is authoritative", patchDisabled: false, refreshDisabled: true, wantDisabled: true, wantMethods: "POST,PATCH,GET"},
+		{name: "refresh rejects still enabled key", patchDisabled: true, refreshDisabled: false, wantError: "Unable to disable newly created", wantMethods: "POST,PATCH,GET"},
+		{name: "missing patch identity retains creation", missingPatchHash: true, refreshFailure: true, wantError: "Unable to disable newly created", wantMethods: "POST,PATCH"},
+		{name: "different patch identity retains creation", patchHash: "other-key", refreshFailure: true, wantError: "Unable to confirm newly created", wantMethods: "POST,PATCH"},
+		{name: "different refresh identity retains patch state", patchDisabled: true, refreshHash: "other-key", wantError: "Unable to confirm newly created", wantDisabled: true, wantMethods: "POST,PATCH,GET"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var mu sync.Mutex
+			var methods []string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mu.Lock()
+				defer mu.Unlock()
+				methods = append(methods, r.Method)
+				w.Header().Set("Content-Type", "application/json")
+				key := client.APIKey{Hash: "created-key-hash", Name: "zero-limit-key"}
+				switch r.Method {
+				case http.MethodPost:
+					if tt.createFailure {
+						http.Error(w, "create failed", http.StatusBadRequest)
+						return
+					}
+					_ = json.NewEncoder(w).Encode(client.APIKeyCreateResponse{Data: key, Key: "local-one-time-secret"})
+					return
+				case http.MethodPatch:
+					if r.URL.Path != "/keys/created-key-hash" {
+						t.Errorf("disable used wrong identity: %s", r.URL.Path)
+					}
+					if tt.patchFailure {
+						http.Error(w, "disable failed", http.StatusBadRequest)
+						return
+					}
+					key.Disabled = tt.patchDisabled
+					if tt.missingPatchHash || tt.patchHash != "" {
+						key.Hash = tt.patchHash
+					}
+				case http.MethodGet:
+					if r.URL.Path != "/keys/created-key-hash" {
+						t.Errorf("refresh used wrong identity: %s", r.URL.Path)
+					}
+					if tt.refreshFailure {
+						http.Error(w, "refresh failed", http.StatusBadRequest)
+						return
+					}
+					key.Disabled = tt.refreshDisabled
+					if tt.refreshHash != "" {
+						key.Hash = tt.refreshHash
+					}
+				default:
+					t.Errorf("unexpected operation: %s", r.Method)
+					http.Error(w, "unexpected operation", http.StatusMethodNotAllowed)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"data": key})
+			}))
+			defer server.Close()
+			ctx := context.Background()
+			r := &apiKeyResource{client: client.New("local", server.URL, "test", time.Second)}
+			var schemaResponse frameworkresource.SchemaResponse
+			r.Schema(ctx, frameworkresource.SchemaRequest{}, &schemaResponse)
+			plan := tfsdk.Plan{Schema: schemaResponse.Schema}
+			model := flattenAPIKeyModel(client.APIKey{Name: "zero-limit-key", Disabled: true})
+			model.Limit = types.Float64Value(0)
+			if diags := plan.Set(ctx, &model); diags.HasError() {
+				t.Fatal(diags)
+			}
+			resp := frameworkresource.CreateResponse{State: tfsdk.State{Schema: schemaResponse.Schema}}
+			r.Create(ctx, frameworkresource.CreateRequest{Plan: plan}, &resp)
+			if tt.wantError == "" {
+				if resp.Diagnostics.HasError() {
+					t.Fatalf("unexpected diagnostics: %s", resp.Diagnostics)
+				}
+			} else if !resp.Diagnostics.HasError() || !strings.Contains(resp.Diagnostics[0].Summary(), tt.wantError) {
+				t.Fatalf("diagnostics=%s, want error containing %q", resp.Diagnostics, tt.wantError)
+			}
+			if tt.createFailure {
+				if !resp.State.Raw.IsNull() {
+					t.Fatal("failed POST must not establish resource state")
+				}
+			} else {
+				var state apiKeyResourceModel
+				if diags := resp.State.Get(ctx, &state); diags.HasError() {
+					t.Fatal(diags)
+				}
+				if state.ID.ValueString() != "created-key-hash" || state.Key.ValueString() != "local-one-time-secret" {
+					t.Fatal("created identity or one-time secret lost after post-create operation")
+				}
+				if state.Disabled.IsUnknown() || state.Disabled.IsNull() || state.Disabled.ValueBool() != tt.wantDisabled {
+					t.Fatalf("disabled=%s, want last observed remote value %t", state.Disabled, tt.wantDisabled)
+				}
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if got := strings.Join(methods, ","); got != tt.wantMethods {
+				t.Fatalf("API operations=%s, want %s", got, tt.wantMethods)
+			}
+		})
+	}
+}
 
 func TestAPIKeyResourceWorkspaceIDSchemaSupportsAPIDefault(t *testing.T) {
 	t.Parallel()
