@@ -67,3 +67,7 @@ tronador/
 
 .ouroboros/
 omx_wiki/
+
+# Local OMX state-lock metadata (not provider source)
+.omx-state-locks.identity.json
+.omx-state-locks/
