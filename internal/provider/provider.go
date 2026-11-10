@@ -495,6 +495,7 @@ func (p *openRouterProvider) Resources(_ context.Context) []func() resource.Reso
 		NewModelAvailabilityPolicyResource,
 		NewAPIKeyPolicyAssignmentResource,
 		NewMemberPolicyAssignmentResource,
+		NewSCIMGroupMappingResource,
 	}
 }
 
@@ -507,5 +508,7 @@ func (p *openRouterProvider) DataSources(_ context.Context) []func() datasource.
 		NewOrganizationDataSource,
 		NewProvidersDataSource,
 		NewBYOKKeysDataSource,
+		NewSCIMGroupsDataSource,
+		NewWorkspaceMembersDataSource,
 	}
 }
